@@ -4,43 +4,44 @@ on: [push]
 jobs:
   test:
     runs-on: ubuntu-latest
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: 3.6
-        architecture: x64
-    - name: Install Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-    - name: Test
-      run: make test
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+          architecture: x64
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Test
+        run: make test
 
   linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
-      with:
-        python-version: 3.6
-        architecture: x64
-    - name: Install Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-    - name: Build Wheels
-      uses: messense/maturin-action@v1
-      with:
-        maturin-version: latest
-        manylinux: auto
-    - name: Install built wheel
-      run: |
-        pip install snake_egg --no-index --find-links ./target/wheels --force-reinstall
-        python -c "import snake_egg"
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels
-        path: ./target/wheels
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+          architecture: x64
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+      - name: Build Wheels
+        uses: messense/maturin-action@v1
+        with:
+          maturin-version: latest
+          manylinux: auto
+      - name: Install built wheel
+        run: |
+          pip install snake_egg --no-index --find-links ./target/wheels --force-reinstall
+          python -c "import snake_egg"
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: ./target/wheels

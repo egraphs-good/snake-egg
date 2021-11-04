@@ -46,15 +46,18 @@ class TestEGraph(unittest.TestCase):
     def test_simple(self):
         egraph = EGraph()
 
-        add = egraph.add(Add(1, 1))
-        mul = egraph.add(Mul(1, 2))
+        add = egraph.add(Add(1, 0))
+        egraph.run(rules, iter_limit=2)
 
-        egraph.run(rules, iter_limit=1)
-
-        self.assertTrue(egraph.equiv(add, mul))
-
+        self.assertTrue(egraph.equiv(add, 1))
         self.assertEqual(egraph.add(Add(7, 8)), egraph.add(Add(7, 8)))
         self.assertTrue(egraph.union(2, Add(1, 1), Add(2, 0)))
+
+        # extract two separately
+        self.assertEqual(egraph.extract(add), egraph.extract(1))
+        # extract two at same time
+        a, b = egraph.extract(add, 1)
+        self.assertEqual(a, b)
 
 
 if __name__ == '__main__':

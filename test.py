@@ -1,18 +1,44 @@
-from typing import Any, Tuple
+import inspect
 import unittest
+# import doctest
 
-
-from collections import namedtuple
 from snake_egg import EGraph, Rewrite, Var, vars
 
+from collections import namedtuple
 Add = namedtuple('Add', 'x y')
 Mul = namedtuple('Mul', 'x y')
 
-x, y = vars('x y')
+
+class ENode:
+    def __rshift__(self, other):
+        return Rewrite(self, other)
+
+
+class Foo(tuple, ENode):
+    def __new__(cls, *args):
+        return super().__new__(cls, tuple(args))
+
+
+print(inspect.getmro(Foo))
+
+
+x, y, z = vars('x y z')
+
+print(str(Add(x, y)))
 
 rules = [
-    Rewrite(Add(x, x), to=Mul(x, 2))
+    Rewrite(lhs=Add(x, y), rhs=Add(y, x), name='add_comm'),
+    Rewrite(Mul(x, y),         Mul(y, x)),
+    Rewrite(Add(x, Add(y, z)), Add(Add(x, y), z)),
+    Rewrite(Mul(x, Mul(y, z)), Mul(Mul(x, y), z)),
+    Rewrite(Add(x, 0),         x),
+    Rewrite(Mul(x, 0),         0),
+    Foo(x, 1) >> x,
+    Rewrite(Add(x, x),         Mul(x, 2)),
 ]
+
+for r in rules:
+    print(r.name)
 
 
 egraph = EGraph()
@@ -46,4 +72,10 @@ class TestEGraph(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # import snake_egg
+    # print("--- doc tests ---")
+    # failed, tested = doctest.testmod(snake_egg, verbose=True, report=True)
+    # if failed > 0:
+    #     exit(1)
+    print("\n\n--- unit tests ---")
+    unittest.main(verbosity=2)

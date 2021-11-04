@@ -1,10 +1,15 @@
-use std::{array::IntoIter, collections::HashMap, hash::Hash, time::Duration};
+use once_cell::sync::Lazy;
 
+use std::cmp::Ordering;
+use std::sync::Mutex;
+use std::{borrow::Cow, fmt::Display, hash::Hash, time::Duration};
+
+use pyo3::AsPyPointer;
 use pyo3::{
     basic::CompareOp,
     prelude::*,
-    types::{PyList, PyString, PyTuple},
-    AsPyPointer, PyNativeType, PyObjectProtocol, ToPyObject,
+    types::{PyList, PyString, PyTuple, PyType},
+    PyObjectProtocol,
 };
 
 macro_rules! impl_py_object {
@@ -60,6 +65,114 @@ impl Var {
     }
 }
 
+#[derive(Debug, Clone)]
+struct PyLang {
+    obj: PyObject,
+    children: Vec<egg::Id>,
+}
+
+impl PyLang {
+    fn op(ty: &PyType, children: impl IntoIterator<Item = egg::Id>) -> Self {
+        let any = ty.as_ref();
+        let py = any.py();
+        Self {
+            obj: any.to_object(py),
+            children: children.into_iter().collect(),
+        }
+    }
+
+    fn leaf(any: &PyAny) -> Self {
+        struct Hashable {
+            obj: PyObject,
+            hash: isize,
+        }
+
+        impl Hash for Hashable {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.hash.hash(state);
+            }
+        }
+
+        impl PartialEq for Hashable {
+            fn eq(&self, other: &Self) -> bool {
+                let py = unsafe { Python::assume_gil_acquired() };
+                let cmp = self.obj.as_ref(py).rich_compare(&other.obj, CompareOp::Eq);
+                cmp.unwrap().is_true().unwrap()
+            }
+        }
+
+        impl Eq for Hashable {}
+
+        static LEAVES: Lazy<Mutex<hashbrown::HashSet<Hashable>>> = Lazy::new(Default::default);
+
+        let hash = any.hash().expect("failed to hash");
+        let py = any.py();
+        let obj = any.to_object(py);
+
+        let mut leaves = LEAVES.lock().unwrap();
+        let hashable = leaves.get_or_insert(Hashable { obj, hash });
+
+        Self {
+            obj: hashable.obj.clone(),
+            children: vec![],
+        }
+    }
+}
+
+impl PartialEq for PyLang {
+    fn eq(&self, other: &Self) -> bool {
+        self.obj.as_ptr() == other.obj.as_ptr() && self.children == other.children
+    }
+}
+
+impl Hash for PyLang {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.obj.as_ptr().hash(state);
+        self.children.hash(state);
+    }
+}
+
+impl Ord for PyLang {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).expect("comparison failed")
+    }
+}
+
+impl PartialOrd for PyLang {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.obj.as_ptr().partial_cmp(&other.obj.as_ptr()) {
+            Some(Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.children.partial_cmp(&other.children)
+    }
+}
+
+impl Eq for PyLang {}
+
+impl egg::Language for PyLang {
+    fn matches(&self, other: &Self) -> bool {
+        self.obj.as_ptr() == other.obj.as_ptr() && self.children.len() == other.children.len()
+    }
+
+    fn children(&self) -> &[egg::Id] {
+        &self.children
+    }
+
+    fn children_mut(&mut self) -> &mut [egg::Id] {
+        &mut self.children
+    }
+}
+
+impl Display for PyLang {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Python::with_gil(|py| match self.obj.as_ref(py).str() {
+            Ok(s) => s.fmt(f),
+            Err(_) => "<<NODE>>".fmt(f),
+        })
+    }
+}
+
 #[pyclass]
 struct Pattern {
     pattern: egg::Pattern<PyLang>,
@@ -82,17 +195,13 @@ fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
     } else if let Ok(var) = tree.extract::<Var>() {
         ast.add(egg::ENodeOrVar::Var(var.0))
     } else if let Ok(tuple) = tree.downcast::<PyTuple>() {
-        let ty = tree.get_type_ptr() as usize;
-        let ids: Vec<egg::Id> = tuple
-            .iter()
-            .map(|child| build_pattern(ast, child))
-            .collect();
-        ast.add(egg::ENodeOrVar::ENode(PyLang::Node(ty, ids)))
-    } else if let Ok(n) = tree.extract::<i64>() {
-        ast.add(egg::ENodeOrVar::ENode(PyLang::Int(n)))
+        let op = PyLang::op(
+            tree.get_type(),
+            tuple.iter().map(|child| build_pattern(ast, child)),
+        );
+        ast.add(egg::ENodeOrVar::ENode(op))
     } else {
-        let repr = tree.repr().expect("failed to repr");
-        panic!("Cannot convert to pattern: {}", repr)
+        ast.add(egg::ENodeOrVar::ENode(PyLang::leaf(tree)))
     }
 }
 
@@ -104,43 +213,22 @@ struct Rewrite {
 #[pymethods]
 impl Rewrite {
     #[new]
-    fn new(from: &PyAny, to: &PyAny) -> Self {
-        let searcher = Pattern::new(from).pattern;
-        let applier = Pattern::new(to).pattern;
-        let rewrite =
-            egg::Rewrite::new("name", searcher, applier).expect("Failed to create rewrite");
+    #[args(name = "\"\"")]
+    fn new(lhs: &PyAny, rhs: &PyAny, name: &str) -> Self {
+        let searcher = Pattern::new(lhs).pattern;
+        let applier = Pattern::new(rhs).pattern;
+
+        let mut name = Cow::Borrowed(name);
+        if name == "" {
+            name = Cow::Owned(format!("{} => {}", searcher, applier));
+        }
+        let rewrite = egg::Rewrite::new(name, searcher, applier).expect("Failed to create rewrite");
         Rewrite { rewrite }
     }
-}
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum PyLang {
-    Int(i64),
-    Node(usize, Vec<egg::Id>),
-}
-
-impl egg::Language for PyLang {
-    fn matches(&self, other: &Self) -> bool {
-        use PyLang::*;
-        match (self, other) {
-            (Node(op1, args1), Node(op2, args2)) => op1 == op2 && args1.len() == args2.len(),
-            (Int(a), Int(b)) => a == b,
-            _ => false,
-        }
-    }
-
-    fn children(&self) -> &[egg::Id] {
-        match self {
-            PyLang::Node(_, args) => args,
-            _ => &[],
-        }
-    }
-
-    fn children_mut(&mut self) -> &mut [egg::Id] {
-        match self {
-            PyLang::Node(_, args) => args,
-            _ => &mut [],
-        }
+    #[getter]
+    fn name(&self) -> &str {
+        self.rewrite.name.as_str()
     }
 }
 
@@ -220,19 +308,18 @@ impl EGraph {
 
 impl EGraph {
     fn add_rec(&mut self, expr: &PyAny) -> egg::Id {
-        if let Ok(id) = expr.extract::<Id>() {
-            self.egraph.find(id.0)
+        if let Ok(Id(id)) = expr.extract() {
+            self.egraph.find(id)
+        } else if let Ok(Var(var)) = expr.extract() {
+            panic!("Can't add a var: {}", var)
         } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
-            let ty = expr.get_type_ptr() as usize;
-            let ids: Vec<egg::Id> = tuple.iter().map(|child| self.add_rec(child)).collect();
-            self.egraph.add(PyLang::Node(ty, ids))
-        } else if let Ok(n) = expr.extract::<i64>() {
-            self.egraph.add(PyLang::Int(n))
-        // } else if let Ok(s) = expr.extract::<&str>() {
-        //     self.egraph.add(ENode::Symbol(s.into()))
+            let enode = PyLang::op(
+                expr.get_type(),
+                tuple.iter().map(|child| self.add_rec(child)),
+            );
+            self.egraph.add(enode)
         } else {
-            let repr = expr.repr().expect("failed to repr");
-            panic!("Cannot add {}", repr)
+            self.egraph.add(PyLang::leaf(expr))
         }
     }
 }

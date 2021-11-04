@@ -18,33 +18,32 @@ jobs:
       - name: Test
         run: make test
 
-  build-wheel:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.6
-          architecture: x64
-      # - name: Install Rust toolchain
-      #   uses: actions-rs/toolchain@v1
-      #   with:
-      #     toolchain: stable
-      #     profile: minimal
-      - name: Build Wheels
-        uses: messense/maturin-action@v1
-        with:
-          maturin-version: latest
-          manylinux: auto
-      - name: Install built wheel
-        run: |
-          pip install snake_egg --no-index --find-links ./target/wheels --force-reinstall
-          python -c "import snake_egg"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v2
-        with:
-          name: wheels
-          path: ./target/wheels
+  # build-wheel:
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.6
+  #         architecture: x64
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         profile: minimal
+  #     - name: Build Wheels
+  #       uses: messense/maturin-action@v1
+  #       with:
+  #         maturin-version: latest
+  #         manylinux: auto
+  #     - name: Install built wheel
+  #       run: |
+  #         pip install snake_egg --no-index --find-links ./target/wheels --force-reinstall
+  #         python -c "import snake_egg"
+  #     - name: Upload wheels
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: wheels
+  #         path: ./target/wheels

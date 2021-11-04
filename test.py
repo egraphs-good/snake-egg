@@ -8,20 +8,6 @@ from collections import namedtuple
 Add = namedtuple('Add', 'x y')
 Mul = namedtuple('Mul', 'x y')
 
-
-class ENode:
-    def __rshift__(self, other):
-        return Rewrite(self, other)
-
-
-class Foo(tuple, ENode):
-    def __new__(cls, *args):
-        return super().__new__(cls, tuple(args))
-
-
-print(inspect.getmro(Foo))
-
-
 x, y, z = vars('x y z')
 
 print(str(Add(x, y)))
@@ -33,7 +19,7 @@ rules = [
     Rewrite(Mul(x, Mul(y, z)), Mul(Mul(x, y), z)),
     Rewrite(Add(x, 0),         x),
     Rewrite(Mul(x, 0),         0),
-    Foo(x, 1) >> x,
+    Rewrite(Mul(x, 1),         x),
     Rewrite(Add(x, x),         Mul(x, 2)),
 ]
 

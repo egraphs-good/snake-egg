@@ -9,13 +9,14 @@ use pyo3::{
     basic::CompareOp,
     prelude::*,
     types::{PyList, PyString, PyTuple, PyType},
-    PyObjectProtocol,
 };
 
-macro_rules! impl_py_object {
-    ($t:ty) => {
-        #[pyproto]
-        impl PyObjectProtocol for $t {
+macro_rules! py_object {
+    (impl $t:ty { $($rest:tt)* }) => {
+        #[pymethods]
+        impl $t {
+            $($rest)*
+
             fn __str__(&self) -> String {
                 self.0.to_string()
             }
@@ -42,26 +43,23 @@ macro_rules! impl_py_object {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Id(egg::Id);
 
-impl_py_object!(Id);
+py_object!(impl Id {});
 
 #[pyclass]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Var(egg::Var);
 
-impl_py_object!(Var);
+py_object!(impl Var {
+    #[new]
+    fn new(str: &PyString) -> Self {
+        Self::from_str(str.to_string_lossy().as_ref())
+    }
+});
 
 impl Var {
     fn from_str(str: &str) -> Self {
         let v = format!("?{}", str);
         Var(v.parse().unwrap())
-    }
-}
-
-#[pymethods]
-impl Var {
-    #[new]
-    fn new(str: &PyString) -> Self {
-        Self::from_str(str.to_string_lossy().as_ref())
     }
 }
 
@@ -234,7 +232,7 @@ impl Rewrite {
 
 #[pyclass]
 #[derive(Default)]
-pub struct EGraph {
+struct EGraph {
     egraph: egg::EGraph<PyLang, ()>,
 }
 
@@ -344,6 +342,7 @@ where
 #[pymodule]
 fn snake_egg(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<EGraph>()?;
+    m.add_class::<ENode>()?;
     m.add_class::<Id>()?;
     m.add_class::<Var>()?;
     m.add_class::<Pattern>()?;

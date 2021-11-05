@@ -1,5 +1,6 @@
 use egg::{Language, RecExpr};
 use once_cell::sync::Lazy;
+use pyo3::exceptions::PyNotImplementedError;
 
 use std::cmp::Ordering;
 use std::sync::Mutex;
@@ -11,6 +12,13 @@ use pyo3::{
     prelude::*,
     types::{PyList, PyString, PyTuple, PyType},
 };
+
+fn py_eq(a: &PyAny, b: impl ToPyObject) -> bool {
+    a.rich_compare(b, CompareOp::Eq)
+        .expect("Failed to compare")
+        .is_true()
+        .expect("Failed to extract bool")
+}
 
 macro_rules! py_object {
     (impl $t:ty { $($rest:tt)* }) => {
@@ -95,8 +103,7 @@ impl PyLang {
         impl PartialEq for Hashable {
             fn eq(&self, other: &Self) -> bool {
                 let py = unsafe { Python::assume_gil_acquired() };
-                let cmp = self.obj.as_ref(py).rich_compare(&other.obj, CompareOp::Eq);
-                cmp.unwrap().is_true().unwrap()
+                py_eq(self.obj.as_ref(py), &other.obj)
             }
         }
 
@@ -114,6 +121,16 @@ impl PyLang {
         Self {
             obj: hashable.obj.clone(),
             children: vec![],
+        }
+    }
+
+    fn to_object<T: IntoPy<PyObject>>(&self, py: Python, f: impl FnMut(egg::Id) -> T) -> PyObject {
+        if self.is_leaf() {
+            self.obj.clone()
+        } else {
+            let children = self.children.iter().copied().map(f);
+            let args = PyTuple::new(py, children.map(|o| o.into_py(py)));
+            self.obj.call1(py, args).expect("Failed to construct")
         }
     }
 }
@@ -206,7 +223,7 @@ fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
 
 #[pyclass]
 struct Rewrite {
-    rewrite: egg::Rewrite<PyLang, ()>,
+    rewrite: egg::Rewrite<PyLang, PyAnalysis>,
 }
 
 #[pymethods]
@@ -231,23 +248,95 @@ impl Rewrite {
     }
 }
 
-#[pyclass]
 #[derive(Default)]
-struct EGraph {
-    egraph: egg::EGraph<PyLang, ()>,
+struct PyAnalysis {
+    eval: Option<PyObject>,
+    merge: Option<PyObject>,
 }
 
-type Runner = egg::Runner<PyLang, (), ()>;
+impl egg::Analysis<PyLang> for PyAnalysis {
+    type Data = Option<PyObject>;
+
+    fn make(egraph: &egg::EGraph<PyLang, Self>, enode: &PyLang) -> Self::Data {
+        let eval = egraph.analysis.eval.as_ref()?;
+        let py = unsafe { Python::assume_gil_acquired() };
+
+        // collect the children if they are not `None` in python
+        let mut children = Vec::with_capacity(enode.len());
+        for &id in enode.children() {
+            let any = egraph[id].data.as_ref()?.as_ref(py);
+            if any.is_none() {
+                return None;
+            } else {
+                children.push(any)
+            }
+        }
+
+        let res = eval
+            .call1(py, (enode.obj.clone(), children))
+            .expect("Failed to call eval");
+        Some(res)
+        // let py = unsafe { Python::assume_gil_acquired() };
+        // let an = &egraph.analysis.eval;
+        // if an.is_none(py) {
+        //     return py.None();
+        // }
+        // let args = (enode.to_object(py, |id),);
+        // match an.call_method1(py, "make", args) {
+        //     Ok(res) => res,
+        //     Err(err) if err.is_instance::<PyNotImplementedError>(py) => py.None(),
+        //     Err(err) => panic!("Analysis::make failed on {} with {}", enode, err),
+        // }
+    }
+
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> egg::DidMerge {
+        let py = unsafe { Python::assume_gil_acquired() };
+        let aa = a.as_ref().map(|obj| obj.as_ref(py)).filter(|r| r.is_none());
+        let bb = b.as_ref().map(|obj| obj.as_ref(py)).filter(|r| r.is_none());
+        match (aa, bb) {
+            (None, None) => egg::DidMerge(false, false),
+            (None, Some(bb)) => {
+                *a = Some(bb.to_object(py));
+                egg::DidMerge(true, false)
+            }
+            (Some(_), None) => egg::DidMerge(false, true),
+            (Some(aa), Some(bb)) => {
+                if !py_eq(aa, bb) {
+                    panic!("Failed to merge")
+                }
+                egg::DidMerge(false, false)
+            }
+        }
+    }
+
+    fn modify(egraph: &mut egg::EGraph<PyLang, Self>, id: egg::Id) {
+        let obj = egraph[id].data.clone();
+        if let Some(obj) = obj {
+            let py = unsafe { Python::assume_gil_acquired() };
+            let id2 = add_rec(egraph, obj.as_ref(py));
+            egraph.union(id, id2);
+        }
+    }
+}
+
+#[pyclass]
+struct EGraph {
+    egraph: egg::EGraph<PyLang, PyAnalysis>,
+}
+
+type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
 
 #[pymethods]
 impl EGraph {
     #[new]
-    fn new() -> Self {
-        Self::default()
+    fn new(eval: Option<PyObject>, merge: Option<PyObject>) -> Self {
+        Self {
+            egraph: egg::EGraph::new(PyAnalysis { eval, merge }),
+        }
     }
 
     fn add(&mut self, expr: &PyAny) -> Id {
-        Id(self.add_rec(expr))
+        Id(add_rec(&mut self.egraph, expr))
     }
 
     #[args(exprs = "*")]
@@ -288,12 +377,13 @@ impl EGraph {
         time_limit: f64,
         node_limit: usize,
     ) -> PyResult<()> {
+        self.rebuild();
         let refs = rewrites
             .iter()
             .map(FromPyObject::extract)
             .collect::<PyResult<Vec<PyRef<Rewrite>>>>()?;
         let egraph = std::mem::take(&mut self.egraph);
-        let runner = Runner::new(())
+        let runner = Runner::default()
             .with_iter_limit(iter_limit)
             .with_node_limit(node_limit)
             .with_time_limit(Duration::from_secs_f64(time_limit))
@@ -318,35 +408,27 @@ impl EGraph {
 }
 
 fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {
-    let mut objs = vec![];
+    let mut objs = Vec::<PyObject>::with_capacity(recexpr.as_ref().len());
     for node in recexpr.as_ref() {
-        if node.is_leaf() {
-            objs.push(node.obj.clone())
-        } else {
-            let get_child = |&id| objs[usize::from(id)].clone();
-            let args = PyTuple::new(py, node.children.iter().map(get_child));
-            let obj = node.obj.call1(py, args).expect("Failed to construct");
-            objs.push(obj)
-        }
+        let obj = node.to_object(py, |id| objs[usize::from(id)].clone());
+        objs.push(obj)
     }
     objs.pop().unwrap()
 }
 
-impl EGraph {
-    fn add_rec(&mut self, expr: &PyAny) -> egg::Id {
-        if let Ok(Id(id)) = expr.extract() {
-            self.egraph.find(id)
-        } else if let Ok(Var(var)) = expr.extract() {
-            panic!("Can't add a var: {}", var)
-        } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
-            let enode = PyLang::op(
-                expr.get_type(),
-                tuple.iter().map(|child| self.add_rec(child)),
-            );
-            self.egraph.add(enode)
-        } else {
-            self.egraph.add(PyLang::leaf(expr))
-        }
+fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::Id {
+    if let Ok(Id(id)) = expr.extract() {
+        egraph.find(id)
+    } else if let Ok(Var(var)) = expr.extract() {
+        panic!("Can't add a var: {}", var)
+    } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
+        let enode = PyLang::op(
+            expr.get_type(),
+            tuple.iter().map(|child| add_rec(egraph, child)),
+        );
+        egraph.add(enode)
+    } else {
+        egraph.add(PyLang::leaf(expr))
     }
 }
 

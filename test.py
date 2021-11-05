@@ -1,4 +1,3 @@
-import inspect
 import unittest
 # import doctest
 
@@ -27,13 +26,26 @@ for r in rules:
     print(r.name)
 
 
-egraph = EGraph()
+def eval(op, args):
+    if op is Add:
+        return args[0] + args[1]
+    elif op is Mul:
+        return args[0] + args[1]
+    elif isinstance(op, int):
+        return op
+    assert False
+
+
+egraph = EGraph(eval=eval)
 
 add = egraph.add(Add(1, 1))
 mul = egraph.add(Mul(1, 2))
 
 egraph.run(rules, iter_limit=1)
 assert egraph.equiv(add, mul)
+
+egraph.rebuild()
+assert egraph.equiv(add, 2)
 
 
 class TestEGraph(unittest.TestCase):

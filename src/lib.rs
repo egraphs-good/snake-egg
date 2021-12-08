@@ -1,4 +1,4 @@
-use egg::{Language, RecExpr};
+use egg::{Language, RecExpr, DidMerge};
 use once_cell::sync::Lazy;
 
 use std::cmp::Ordering;
@@ -172,6 +172,50 @@ impl Display for PyLang {
     }
 }
 
+
+
+static ANALYZER: Option<&PyAny> = None;
+
+#[pyclass]
+#[derive(Default)]
+pub struct PyAnalysis;
+impl egg::Analysis<PyLang> for PyAnalysis {
+    type Data = Option<PyAny>;
+
+    fn make(egraph: &egg::EGraph<PyLang,PyAnalysis>, enode: &PyLang) -> Self::Data {
+        match ANALYZER {
+            Some(analyzer) => {
+                let args = (egraph, enode);
+                let res = analyzer.call_method("make", args, None).unwrap();
+                if res.is_none() {
+                    None
+                } else {
+                    Some(res)
+                }
+            },
+            None => None
+        }
+    }
+
+    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
+        match ANALYZER {
+            Some(analyzer) => {
+                let args = (self, a, b);
+                let res: &PyTuple = analyzer.call_method("merge", args, None)
+                    .unwrap()
+                    .extract()
+                    .unwrap();
+                DidMerge(res[0].is_true().unwrap(),
+                         res[1].is_true().unwrap())
+            },
+            None => DidMerge(false, false)
+        }
+    }
+}
+
+
+
+
 #[pyclass]
 struct Pattern {
     pattern: egg::Pattern<PyLang>,
@@ -234,10 +278,10 @@ impl Rewrite {
 #[pyclass]
 #[derive(Default)]
 struct EGraph {
-    egraph: egg::EGraph<PyLang, ()>,
+    egraph: egg::EGraph<PyLang, PyAnalysis>,
 }
 
-type Runner = egg::Runner<PyLang, (), ()>;
+type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
 
 #[pymethods]
 impl EGraph {
@@ -280,7 +324,7 @@ impl EGraph {
         self.egraph.rebuild()
     }
 
-    #[args(iters = "10", time_limit = "10.0", node_limit = "100_000")]
+    #[args(iter_limit = "10", time_limit = "10.0", node_limit = "100_000")]
     fn run(
         &mut self,
         rewrites: &PyList,
@@ -293,7 +337,7 @@ impl EGraph {
             .map(FromPyObject::extract)
             .collect::<PyResult<Vec<PyRef<Rewrite>>>>()?;
         let egraph = std::mem::take(&mut self.egraph);
-        let runner = Runner::new(())
+        let runner = Runner::new(PyAnalysis)
             .with_iter_limit(iter_limit)
             .with_node_limit(node_limit)
             .with_time_limit(Duration::from_secs_f64(time_limit))
@@ -378,6 +422,13 @@ fn snake_egg(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Var>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Rewrite>()?;
+
+    #[pyfn(m)]
+    fn set_analyzer(analyzer: &'static PyAny) {
+        unsafe {
+            ANALYZER = Some(analyzer);
+        }
+    }
 
     #[pyfn(m)]
     fn vars(vars: &PyString) -> SingletonOrTuple<Var> {

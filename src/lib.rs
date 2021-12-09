@@ -174,42 +174,61 @@ impl Display for PyLang {
 
 
 
-static ANALYZER: Option<&PyAny> = None;
+static mut ANALYZER: Option<PyObject> = None;
 
-#[pyclass]
-#[derive(Default)]
+
+#[derive(Default, Debug, Clone)]
 pub struct PyAnalysis;
 impl egg::Analysis<PyLang> for PyAnalysis {
-    type Data = Option<PyAny>;
+    type Data = Option<PyObject>;
 
-    fn make(egraph: &egg::EGraph<PyLang,PyAnalysis>, enode: &PyLang) -> Self::Data {
-        match ANALYZER {
-            Some(analyzer) => {
-                let args = (egraph, enode);
-                let res = analyzer.call_method("make", args, None).unwrap();
-                if res.is_none() {
-                    None
-                } else {
-                    Some(res)
-                }
-            },
-            None => None
+    fn make(egraph: &egg::EGraph<PyLang,PyAnalysis>, enode: &PyLang)
+            -> Self::Data {
+        unsafe { // unsafe due to mutable global
+            match &ANALYZER {
+                Some(analyzer) => {
+                    let args = (EGraph::from_egg(egraph.clone()),
+                                enode.obj.clone());
+                    Python::with_gil(|py| {
+                        let res = analyzer.call_method(py, "make", args, None)
+                            .unwrap();
+                        if res.is_none(py) {
+                            None
+                        } else {
+                            Some(res)
+                        }
+                    })
+                },
+                None => None
+            }
         }
     }
 
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        match ANALYZER {
-            Some(analyzer) => {
-                let args = (self, a, b);
-                let res: &PyTuple = analyzer.call_method("merge", args, None)
-                    .unwrap()
-                    .extract()
-                    .unwrap();
-                DidMerge(res[0].is_true().unwrap(),
-                         res[1].is_true().unwrap())
-            },
-            None => DidMerge(false, false)
-        }
+        // unsafe { // unsafe due to mutable global
+        //     match &ANALYZER {
+        //         Some(analyzer) => {
+        //             Python::with_gil(|py| {
+        //                 let py_a = match a.as_mut() {
+        //                     Some(p) => p,
+        //                     None => Python::None(py)
+        //                 };
+        //                 let py_b = match b.as_mut() {
+        //                     Some(p) => p,
+        //                     None => Python::None(py)
+        //                 };
+        //                 let args = (py_a, py_b);
+        //                 let res = analyzer.call_method(py, "merge", args, None)
+        //                     .unwrap();
+        //                 let tup: Py<PyTuple> = res.extract(py).unwrap();
+        //             DidMerge(tup[0].is_true(py).unwrap(),
+        //                      tup[1].is_true(py).unwrap())
+        //             })
+        //         },
+        //         None => DidMerge(false, false)
+        //     }
+        // }
+        DidMerge(false, false)
     }
 }
 
@@ -250,7 +269,7 @@ fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
 
 #[pyclass]
 struct Rewrite {
-    rewrite: egg::Rewrite<PyLang, ()>,
+    rewrite: egg::Rewrite<PyLang, PyAnalysis>,
 }
 
 #[pymethods]
@@ -392,6 +411,10 @@ impl EGraph {
             self.egraph.add(PyLang::leaf(expr))
         }
     }
+
+    fn from_egg(this_egg: egg::EGraph<PyLang, PyAnalysis>) -> EGraph {
+        EGraph { egraph: this_egg }
+    }
 }
 
 struct SingletonOrTuple<T>(Vec<T>);
@@ -424,7 +447,7 @@ fn snake_egg(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Rewrite>()?;
 
     #[pyfn(m)]
-    fn set_analyzer(analyzer: &'static PyAny) {
+    fn set_analyzer(analyzer: PyObject) {
         unsafe {
             ANALYZER = Some(analyzer);
         }

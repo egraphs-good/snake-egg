@@ -205,30 +205,31 @@ impl egg::Analysis<PyLang> for PyAnalysis {
     }
 
     fn merge(&self, a: &mut Self::Data, b: Self::Data) -> DidMerge {
-        // unsafe { // unsafe due to mutable global
-        //     match &ANALYZER {
-        //         Some(analyzer) => {
-        //             Python::with_gil(|py| {
-        //                 let py_a = match a.as_mut() {
-        //                     Some(p) => p,
-        //                     None => Python::None(py)
-        //                 };
-        //                 let py_b = match b.as_mut() {
-        //                     Some(p) => p,
-        //                     None => Python::None(py)
-        //                 };
-        //                 let args = (py_a, py_b);
-        //                 let res = analyzer.call_method(py, "merge", args, None)
-        //                     .unwrap();
-        //                 let tup: Py<PyTuple> = res.extract(py).unwrap();
-        //             DidMerge(tup[0].is_true(py).unwrap(),
-        //                      tup[1].is_true(py).unwrap())
-        //             })
-        //         },
-        //         None => DidMerge(false, false)
-        //     }
-        // }
-        DidMerge(false, false)
+        unsafe { // unsafe due to mutable global
+            match &ANALYZER {
+                Some(analyzer) => {
+                    Python::with_gil(|py| {
+                        let none_a = &Python::None(py);
+                        let py_a = match a {
+                            Some(p) => p,
+                            None => none_a
+                        };
+                        let none_b = &Python::None(py);
+                        let py_b = match &b {
+                            Some(p) => p,
+                            None => none_b
+                        };
+                        let args = (py_a, py_b);
+                        let res = analyzer.call_method(py, "merge", args, None)
+                            .unwrap();
+                        let tup: &PyTuple = res.as_ref(py).downcast().unwrap();
+                    DidMerge(tup.get_item(0).unwrap().is_true().unwrap(),
+                             tup.get_item(1).unwrap().is_true().unwrap())
+                    })
+                },
+                None => DidMerge(false, false)
+            }
+        }
     }
 }
 

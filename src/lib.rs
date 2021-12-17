@@ -1,4 +1,4 @@
-use egg::{DidMerge, Language, RecExpr};
+use egg::{Language, RecExpr};
 use once_cell::sync::Lazy;
 
 use std::cmp::Ordering;
@@ -250,7 +250,6 @@ impl Rewrite {
 #[derive(Default)]
 struct PyAnalysis {
     eval: Option<PyObject>,
-    _merge: Option<PyObject>,
 }
 
 impl egg::Analysis<PyLang> for PyAnalysis {
@@ -317,9 +316,9 @@ type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
 #[pymethods]
 impl EGraph {
     #[new]
-    fn new(eval: Option<PyObject>, merge: Option<PyObject>) -> Self {
+    fn new(eval: Option<PyObject>) -> Self {
         Self {
-            egraph: egg::EGraph::new(PyAnalysis { eval, merge }),
+            egraph: egg::EGraph::new(PyAnalysis { eval }),
         }
     }
 
@@ -447,13 +446,6 @@ fn snake_egg(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Var>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Rewrite>()?;
-
-    #[pyfn(m)]
-    fn set_analyzer(analyzer: PyObject) {
-        unsafe {
-            ANALYZER = Some(analyzer);
-        }
-    }
 
     #[pyfn(m)]
     fn vars(vars: &PyString) -> SingletonOrTuple<Var> {

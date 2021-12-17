@@ -276,7 +276,7 @@ impl egg::Analysis<PyLang> for PyAnalysis {
         Some(res)
     }
 
-    fn merge(&self, a: &mut Self::Data, b: Self::Data) -> egg::DidMerge {
+    fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> egg::DidMerge {
         let py = unsafe { Python::assume_gil_acquired() };
         let aa = a.as_ref().map(|obj| obj.as_ref(py)).filter(|r| r.is_none());
         let bb = b.as_ref().map(|obj| obj.as_ref(py)).filter(|r| r.is_none());
@@ -387,6 +387,20 @@ impl EGraph {
         ids.iter()
             .map(|&id| {
                 let (_cost, recexpr) = extractor.find_best(id);
+                reconstruct(py, &recexpr)
+            })
+            .collect()
+    }
+
+    fn node_extract(&mut self, py: Python, expr: &PyAny) -> SingletonOrTuple<PyObject> {
+        let id = self.add(expr).0;
+        let eclass = &self.egraph[id];
+        let enodes = &eclass.nodes;
+        let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
+        let get_best_node = |id| extractor.find_best_node(id).clone();
+        enodes.iter()
+            .map(|enode| {
+                let recexpr = enode.clone().build_recexpr(get_best_node);
                 reconstruct(py, &recexpr)
             })
             .collect()

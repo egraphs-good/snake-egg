@@ -391,6 +391,10 @@ impl EGraph {
             })
             .collect()
     }
+
+    fn dot(&self) -> String {
+        self.egraph.dot().to_string()
+    }
 }
 
 fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {

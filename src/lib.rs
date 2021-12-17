@@ -273,7 +273,11 @@ impl egg::Analysis<PyLang> for PyAnalysis {
         let res = eval
             .call1(py, (enode.obj.clone(), children))
             .expect("Failed to call eval");
-        Some(res)
+        if res.is_none(py) {
+            None
+        } else {
+            Some(res)
+        }
     }
 
     fn merge(&mut self, a: &mut Self::Data, b: Self::Data) -> egg::DidMerge {

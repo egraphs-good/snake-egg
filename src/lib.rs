@@ -204,6 +204,22 @@ impl Pattern {
     }
 }
 
+fn build_recexpr(ast: &mut egg::RecExpr<PyLang>, tree: &PyAny) -> egg::Id {
+    if let Ok(Id(id)) = tree.extract() {
+        panic!("Ids are unsupported in recexprs: {}", id)
+    } else if let Ok(Var(var)) = tree.extract() {
+        panic!("Vars are unsupported in recexpers: {}", var)
+    } else if let Ok(tuple) = tree.downcast::<PyTuple>() {
+        let op = PyLang::op(
+            tree.get_type(),
+            tuple.iter().map(|child| build_recexpr(ast, child)),
+        );
+        ast.add(op)
+    } else {
+        ast.add(PyLang::leaf(tree))
+    }
+}
+
 fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
     if let Ok(id) = tree.extract::<Id>() {
         panic!("Ids are unsupported in patterns: {}", id.0)
@@ -326,6 +342,10 @@ impl EGraph {
         }
     }
 
+    fn enable_explanations(&mut self) {
+        self.egraph = std::mem::take(&mut self.egraph).with_explanations_enabled();
+    }
+
     fn add(&mut self, expr: &PyAny) -> Id {
         Id(add_rec(&mut self.egraph, expr))
     }
@@ -402,7 +422,8 @@ impl EGraph {
         let enodes = &eclass.nodes;
         let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
         let get_best_node = |id| extractor.find_best_node(id).clone();
-        enodes.iter()
+        enodes
+            .iter()
             .map(|enode| {
                 let recexpr = enode.clone().build_recexpr(get_best_node);
                 reconstruct(py, &recexpr)
@@ -412,6 +433,23 @@ impl EGraph {
 
     fn dot(&self) -> String {
         self.egraph.dot().to_string()
+    }
+
+    #[args(exprs = "*")]
+    fn explain_equiv(&mut self, exprs: &PyTuple) -> String {
+        assert!(exprs.len() == 2);
+        assert!(self.equiv(exprs));
+        let mut exprs = exprs.iter();
+        let mut lhs = egg::RecExpr::default();
+        build_recexpr(&mut lhs, exprs.next().unwrap());
+        let mut rhs = egg::RecExpr::default();
+        build_recexpr(&mut rhs, exprs.next().unwrap());
+        println!("{} --> {}", lhs, rhs);
+        let mut explanation = self.egraph.explain_equivalence(&lhs, &rhs);
+        println!("found explanation! making string");
+        let retval = explanation.get_flat_string();
+        println!("got string!");
+        retval
     }
 }
 

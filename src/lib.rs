@@ -326,6 +326,25 @@ impl egg::Analysis<PyLang> for PyAnalysis {
     }
 }
 
+pub struct PyLangCostFn;
+impl egg::CostFunction<PyLang> for PyLangCostFn {
+    type Cost = usize;
+    fn cost<C>(&mut self, enode: &PyLang, mut costs: C) -> Self::Cost
+    where
+        C: FnMut(egg::Id) -> Self::Cost,
+    {
+        let op_cost = Python::with_gil(|py| {
+            let classname: String = enode.obj.getattr(py, "__class__").unwrap().to_string();
+            if classname.contains("thefunc") {
+                0
+            } else {
+                100
+            }
+        });
+        enode.fold(op_cost, |sum, i| sum + costs(i))
+    }
+}
+
 #[pyclass]
 struct EGraph {
     egraph: egg::EGraph<PyLang, PyAnalysis>,
@@ -435,6 +454,10 @@ impl EGraph {
         self.egraph.dot().to_string()
     }
 
+    fn total_size(&self) -> usize {
+        self.egraph.total_size()
+    }
+
     #[args(exprs = "*")]
     fn explain_equiv(&mut self, exprs: &PyTuple) -> String {
         assert!(exprs.len() == 2);
@@ -445,9 +468,9 @@ impl EGraph {
         let mut rhs = egg::RecExpr::default();
         build_recexpr(&mut rhs, exprs.next().unwrap());
         println!("{} --> {}", lhs, rhs);
-        let mut explanation = self.egraph.explain_equivalence(&lhs, &rhs);
+        let mut explanation = self.egraph.explain_equivalence(&lhs, &rhs, 100, true);
         println!("found explanation! making string");
-        let retval = explanation.get_flat_string();
+        let retval = explanation.get_string_with_let();
         println!("got string!");
         retval
     }

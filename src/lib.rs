@@ -334,9 +334,14 @@ impl egg::CostFunction<PyLang> for PyLangCostFn {
         C: FnMut(egg::Id) -> Self::Cost,
     {
         let op_cost = Python::with_gil(|py| {
-            let classname: String = enode.obj.getattr(py, "__class__").unwrap().to_string();
-            if classname.contains("thefunc") {
-                0
+            let class: String = enode.obj.getattr(py, "__class__").unwrap().to_string();
+            if class.contains("type") {
+                let name: String = enode.obj.getattr(py, "__name__").unwrap().to_string();
+                if name.contains("thefunc") {
+                    0
+                } else {
+                    100
+                }
             } else {
                 100
             }
@@ -426,7 +431,7 @@ impl EGraph {
     #[args(exprs = "*")]
     fn extract(&mut self, py: Python, exprs: &PyTuple) -> SingletonOrTuple<PyObject> {
         let ids: Vec<egg::Id> = exprs.iter().map(|expr| self.add(expr).0).collect();
-        let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
+        let extractor = egg::Extractor::new(&self.egraph, PyLangCostFn);
         ids.iter()
             .map(|&id| {
                 let (_cost, recexpr) = extractor.find_best(id);
@@ -439,7 +444,7 @@ impl EGraph {
         let id = self.add(expr).0;
         let eclass = &self.egraph[id];
         let enodes = &eclass.nodes;
-        let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
+        let extractor = egg::Extractor::new(&self.egraph, PyLangCostFn);
         let get_best_node = |id| extractor.find_best_node(id).clone();
         enodes
             .iter()
@@ -468,7 +473,8 @@ impl EGraph {
         let mut rhs = egg::RecExpr::default();
         build_recexpr(&mut rhs, exprs.next().unwrap());
         println!("{} --> {}", lhs, rhs);
-        let mut explanation = self.egraph.explain_equivalence(&lhs, &rhs, 100, true);
+        //let explanation = self.egraph.explain_equivalence(&lhs, &rhs, 100, true);
+        let explanation = self.egraph.explain_equivalence(&lhs, &rhs);
         println!("found explanation! making string");
         let retval = explanation.get_string_with_let();
         println!("got string!");

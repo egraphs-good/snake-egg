@@ -334,19 +334,18 @@ impl egg::CostFunction<PyLang> for PyLangCostFn {
         C: FnMut(egg::Id) -> Self::Cost,
     {
         let op_cost = Python::with_gil(|py| {
-            let class: String = enode.obj.getattr(py, "__class__").unwrap().to_string();
-            if class.contains("type") {
-                let name: String = enode.obj.getattr(py, "__name__").unwrap().to_string();
-                if name.contains("thefunc") {
-                    0
-                } else {
-                    100
-                }
+            if enode.is_leaf() {
+                30 // variable, literal, or constant
             } else {
-                100
+                let name = enode.obj.getattr(py, "__name__").unwrap().to_string();
+                match name.as_str() {
+                    "thefunc" => 1,
+                    _ => 100
+                }
             }
         });
-        enode.fold(op_cost, |sum, i| sum + costs(i))
+        let cst = enode.fold(op_cost, |sum, i| sum + costs(i));
+        cst
     }
 }
 

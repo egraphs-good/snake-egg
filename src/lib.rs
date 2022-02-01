@@ -340,7 +340,7 @@ impl egg::CostFunction<PyLang> for PyLangCostFn {
                 let name = enode.obj.getattr(py, "__name__").unwrap().to_string();
                 match name.as_str() {
                     "thefunc" => 1,
-                    _ => 100
+                    _ => 100,
                 }
             }
         });
@@ -403,20 +403,32 @@ impl EGraph {
         self.egraph.rebuild()
     }
 
-    #[args(iter_limit = "10", time_limit = "10.0", node_limit = "100_000")]
+    #[args(
+        iter_limit = "10",
+        time_limit = "10.0",
+        node_limit = "100_000",
+        use_simple_scheduler = "false"
+    )]
     fn run(
         &mut self,
         rewrites: &PyList,
         iter_limit: usize,
         time_limit: f64,
         node_limit: usize,
+        use_simple_scheduler: bool,
     ) -> PyResult<()> {
         let refs = rewrites
             .iter()
             .map(FromPyObject::extract)
             .collect::<PyResult<Vec<PyRef<Rewrite>>>>()?;
         let egraph = std::mem::take(&mut self.egraph);
-        let runner = Runner::default()
+        let base_runner = Runner::default();
+        let scheduled_runner = if use_simple_scheduler {
+            base_runner.with_scheduler(egg::SimpleScheduler)
+        } else {
+            base_runner
+        };
+        let runner = scheduled_runner
             .with_iter_limit(iter_limit)
             .with_node_limit(node_limit)
             .with_time_limit(Duration::from_secs_f64(time_limit))

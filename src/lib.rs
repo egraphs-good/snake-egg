@@ -327,10 +327,6 @@ impl EGraph {
         }
     }
 
-    fn enable_explanations(&mut self) {
-        self.egraph = std::mem::take(&mut self.egraph).with_explanations_enabled();
-    }
-
     fn add(&mut self, expr: &PyAny) -> Id {
         Id(add_rec(&mut self.egraph, expr))
     }

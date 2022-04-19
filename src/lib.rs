@@ -204,21 +204,6 @@ impl Pattern {
     }
 }
 
-fn build_recexpr(ast: &mut egg::RecExpr<PyLang>, tree: &PyAny) -> egg::Id {
-    if let Ok(Id(id)) = tree.extract() {
-        panic!("Ids are unsupported in recexprs: {}", id)
-    } else if let Ok(Var(var)) = tree.extract() {
-        panic!("Vars are unsupported in recexpers: {}", var)
-    } else if let Ok(tuple) = tree.downcast::<PyTuple>() {
-        let op = PyLang::op(
-            tree.get_type(),
-            tuple.iter().map(|child| build_recexpr(ast, child)),
-        );
-        ast.add(op)
-    } else {
-        ast.add(PyLang::leaf(tree))
-    }
-}
 
 fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
     if let Ok(id) = tree.extract::<Id>() {
@@ -326,29 +311,6 @@ impl egg::Analysis<PyLang> for PyAnalysis {
     }
 }
 
-pub struct PyLangCostFn;
-impl egg::CostFunction<PyLang> for PyLangCostFn {
-    type Cost = usize;
-    fn cost<C>(&mut self, enode: &PyLang, mut costs: C) -> Self::Cost
-    where
-        C: FnMut(egg::Id) -> Self::Cost,
-    {
-        let op_cost = Python::with_gil(|py| {
-            if enode.is_leaf() {
-                30 // variable, literal, or constant
-            } else {
-                let name = enode.obj.getattr(py, "__name__").unwrap().to_string();
-                match name.as_str() {
-                    "thefunc" => 1,
-                    _ => 100,
-                }
-            }
-        });
-        let cst = enode.fold(op_cost, |sum, i| sum + costs(i));
-        cst
-    }
-}
-
 #[pyclass]
 struct EGraph {
     egraph: egg::EGraph<PyLang, PyAnalysis>,
@@ -407,7 +369,6 @@ impl EGraph {
         iter_limit = "10",
         time_limit = "10.0",
         node_limit = "100_000",
-        use_simple_scheduler = "false"
     )]
     fn run(
         &mut self,
@@ -415,19 +376,13 @@ impl EGraph {
         iter_limit: usize,
         time_limit: f64,
         node_limit: usize,
-        use_simple_scheduler: bool,
     ) -> PyResult<()> {
         let refs = rewrites
             .iter()
             .map(FromPyObject::extract)
             .collect::<PyResult<Vec<PyRef<Rewrite>>>>()?;
         let egraph = std::mem::take(&mut self.egraph);
-        let base_runner = Runner::default();
-        let scheduled_runner = if use_simple_scheduler {
-            base_runner.with_scheduler(egg::SimpleScheduler)
-        } else {
-            base_runner
-        };
+        let scheduled_runner = Runner::default();
         let runner = scheduled_runner
             .with_iter_limit(iter_limit)
             .with_node_limit(node_limit)
@@ -442,7 +397,7 @@ impl EGraph {
     #[args(exprs = "*")]
     fn extract(&mut self, py: Python, exprs: &PyTuple) -> SingletonOrTuple<PyObject> {
         let ids: Vec<egg::Id> = exprs.iter().map(|expr| self.add(expr).0).collect();
-        let extractor = egg::Extractor::new(&self.egraph, PyLangCostFn);
+        let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
         ids.iter()
             .map(|&id| {
                 let (_cost, recexpr) = extractor.find_best(id);
@@ -451,46 +406,6 @@ impl EGraph {
             .collect()
     }
 
-    fn node_extract(&mut self, py: Python, expr: &PyAny) -> SingletonOrTuple<PyObject> {
-        let id = self.add(expr).0;
-        let eclass = &self.egraph[id];
-        let enodes = &eclass.nodes;
-        let extractor = egg::Extractor::new(&self.egraph, PyLangCostFn);
-        let get_best_node = |id| extractor.find_best_node(id).clone();
-        enodes
-            .iter()
-            .map(|enode| {
-                let recexpr = enode.clone().build_recexpr(get_best_node);
-                reconstruct(py, &recexpr)
-            })
-            .collect()
-    }
-
-    fn dot(&self) -> String {
-        self.egraph.dot().to_string()
-    }
-
-    fn total_size(&self) -> usize {
-        self.egraph.total_size()
-    }
-
-    #[args(exprs = "*")]
-    fn explain_equiv(&mut self, exprs: &PyTuple) -> String {
-        assert!(exprs.len() == 2);
-        assert!(self.equiv(exprs));
-        let mut exprs = exprs.iter();
-        let mut lhs = egg::RecExpr::default();
-        build_recexpr(&mut lhs, exprs.next().unwrap());
-        let mut rhs = egg::RecExpr::default();
-        build_recexpr(&mut rhs, exprs.next().unwrap());
-        println!("{} --> {}", lhs, rhs);
-        //let explanation = self.egraph.explain_equivalence(&lhs, &rhs, 100, true);
-        let explanation = self.egraph.explain_equivalence(&lhs, &rhs);
-        println!("found explanation! making string");
-        let retval = explanation.get_string_with_let();
-        println!("got string!");
-        retval
-    }
 }
 
 fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {

@@ -1,23 +1,28 @@
-.PHONY: all build test install doc
+.PHONY: all build test install doc clean
 
 all: test
 
 dir=$(abspath target/release)
 python=env PYTHONPATH=$(dir) python3
 
-build: 
+build:
 	cargo build --release
-	ln -fs $(dir)/libsnake_egg.so $(dir)/snake_egg.so 
+	ln -fs $(dir)/libsnake_egg.so $(dir)/snake_egg.so
 
-test: test.py build
-	env PYTHONPATH=$(dir) python3 test.py
+test: tests/*.py build
+	$(python) tests/math.py
+	$(python) tests/prop.py
+	$(python) tests/simple.py
 
 install:
 	maturin build
-	python3 -m pip install snake_egg --force-reinstall --no-index --find-link ./target/wheels/ 
+	$(python) -m pip install snake_egg --force-reinstall --no-index --find-link ./target/wheels/
 
 doc: build
-	env PYTHONPATH=$(dir) python3 -m pydoc -w snake_egg
+	$(python) -m pydoc -w snake_egg
 
 shell: build
 	$(python) -ic 'import snake_egg'
+
+clean:
+	cargo clean

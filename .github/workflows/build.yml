@@ -3,10 +3,14 @@ on: [push]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: Install Python
+        uses: actions/setup-python@v2
         with:
           python-version: 3.6
           architecture: x64

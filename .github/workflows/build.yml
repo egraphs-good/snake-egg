@@ -21,7 +21,7 @@ jobs:
           toolchain: stable
           profile: minimal
       - name: Build
-        runL make build
+        run: make build
       - name: Test
         run: make test
 

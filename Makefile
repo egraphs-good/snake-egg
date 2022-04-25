@@ -1,4 +1,4 @@
-.PHONY: all build test install doc clean
+.PHONY: all build test install doc clean distclean
 
 activate=. venv/bin/activate
 
@@ -7,7 +7,7 @@ all: test
 
 venv:
 	python3 -m venv venv
-	$(activate) && python -c 'import sys; print(sys.executable)'
+	$(activate) && python -m pip install maturin
 
 build: venv
 	$(activate) && maturin build --release
@@ -19,7 +19,8 @@ test: tests/*.py build venv
 
 install: venv
 	$(activate) maturin build --release && \
-	  pip install snake_egg --force-reinstall --no-index --find-link ./target/wheels/
+	  python -m pip install snake_egg --force-reinstall --no-index \
+	  --find-link ./target/wheels/
 
 doc: venv
 	$(activate) && maturin develop && python -m pydoc -w snake_egg
@@ -29,3 +30,6 @@ shell: venv
 
 clean:
 	cargo clean
+
+distclean: clean
+	$(RM) -r venv

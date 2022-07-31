@@ -17,6 +17,9 @@ test: tests/*.py build venv
 	$(activate) && maturin develop && python tests/prop.py
 	$(activate) && maturin develop && python tests/simple.py
 
+stubtest: snake_egg.pyi build venv
+	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg
+
 install: venv
 	$(activate) maturin build --release && \
 	  python -m pip install snake_egg --force-reinstall --no-index \

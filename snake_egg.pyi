@@ -1,0 +1,2 @@
+class EGraph:
+    pass

@@ -9,3 +9,9 @@ build-backend = "maturin"
 dev = [
   "mypy"
 ]
+[tool.mypy]
+ignore_missing_imports = false
+warn_redundant_casts = true
+check_untyped_defs = true
+strict_equality = true
+warn_unused_configs = true

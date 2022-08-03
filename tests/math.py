@@ -10,24 +10,24 @@
 from snake_egg import EGraph, Rewrite, Var, vars
 
 import unittest
-
+from typing import List, Any
 from collections import namedtuple
 
 
 # Operations
-diff = namedtuple("Diff", "x y")
-inte = namedtuple("Integral", "x y")
+diff = namedtuple("Diff", "x y") # type: ignore
+inte = namedtuple("Integral", "x y") # type: ignore
 
-add  = namedtuple("Add", "x y")
-sub  = namedtuple("Sub", "x y")
-mul  = namedtuple("Mul", "x y")
-div  = namedtuple("Div", "x y")
-pow  = namedtuple("Pow", "x y")
-ln   = namedtuple("Ln", "x")
-sqrt = namedtuple("Sqrt", "x")
+add  = namedtuple("Add", "x y") # type: ignore
+sub  = namedtuple("Sub", "x y") # type: ignore
+mul  = namedtuple("Mul", "x y") # type: ignore
+div  = namedtuple("Div", "x y") # type: ignore
+pow  = namedtuple("Pow", "x y") # type: ignore
+ln   = namedtuple("Ln", "x") # type: ignore
+sqrt = namedtuple("Sqrt", "x") # type: ignore
 
-sin  = namedtuple("Sin", "x")
-cos  = namedtuple("Cos", "x")
+sin  = namedtuple("Sin", "x") # type: ignore
+cos  = namedtuple("Cos", "x") # type: ignore
 
 # Allow constant folding via an eval function
 def eval_math(car, cdr):
@@ -56,8 +56,8 @@ def eval_math(car, cdr):
     return None
 
 # Rewrite rules, not all are currently used since gaurds aren't in snake-egg yet
-a, b, c, x, f, g, y = vars("a b c x f g y")
-list_rules = [
+a, b, c, x, f, g, y = vars("a b c x f g y") # type: ignore
+list_rules: List[List[Any]] = [
   # name,        from,               to
   ["comm-add",   add(a, b),          add(b, a)],
   ["comm-mul",   mul(a, b),          mul(b, a)],

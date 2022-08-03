@@ -5,18 +5,18 @@
 from snake_egg import EGraph, Rewrite, Var, vars
 
 import unittest
-
+from typing import List, Any
 from collections import namedtuple
 
 
 # Operations
-add  = namedtuple("Add", "x y")
-mul  = namedtuple("Mul", "x y")
+add  = namedtuple("Add", "x y") # type: ignore
+mul  = namedtuple("Mul", "x y") # type: ignore
 
 
 # Rewrite rules
-a, b = vars("a b")
-list_rules = [
+a, b = vars("a b") # type: ignore
+list_rules: List[List[Any]] = [
   ["commute-add",  add(a, b),  add(b, a)],
   ["commute-mul",  mul(a, b),  mul(b, a)],
   ["add-0",        add(a, 0),  a],

@@ -5,15 +5,15 @@
 from snake_egg import EGraph, Rewrite, Var, vars
 
 import unittest
-
+from typing import List, Any
 from collections import namedtuple
 
 
 # Operations
-AND = namedtuple("And", "x y")
-NOT = namedtuple("Not", "x")
-OR  = namedtuple("Or", "x y")
-IM  = namedtuple("Implies", "x y")
+AND = namedtuple("And", "x y") # type: ignore
+NOT = namedtuple("Not", "x") # type: ignore
+OR  = namedtuple("Or", "x y") # type: ignore
+IM  = namedtuple("Implies", "x y") # type: ignore
 
 # Allow constant folding via an eval function
 def eval_prod(car, cdr):
@@ -52,8 +52,8 @@ def eval_prod(car, cdr):
 
 
 # Rewrite rules
-a, b, c = vars("a b c")
-list_rules = [
+a, b, c = vars("a b c") # type: ignore
+list_rules: List[List[Any]] = [
   ["def_imply",        IM(a, b),                      OR(NOT(a), b)],
   ["double_neg",       NOT(NOT(a)),                   a],
   ["def_imply_flip",   OR(NOT(a), b),                 IM(a, b)],

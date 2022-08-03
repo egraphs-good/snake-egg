@@ -1,6 +1,8 @@
 name: Build
-on: [push]
-
+on:
+  pull_request:
+  push:
+    branches: [main]
 jobs:
   test:
     strategy:
@@ -23,7 +25,7 @@ jobs:
       - name: Build
         run: make build
       - name: Test
-        run: make test
+        run: make test stubtest mypy
 
   # build-wheel:
   #   strategy:

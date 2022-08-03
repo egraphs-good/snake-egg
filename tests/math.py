@@ -7,26 +7,27 @@
 #   + this disables some rules and tests
 # * the last three tests
 
-import unittest
-from collections import namedtuple
-from typing import Any
+from snake_egg import EGraph, Rewrite, Var, vars
 
-from snake_egg import EGraph, Rewrite, vars
+import unittest
+from typing import List, Any
+from collections import namedtuple
+
 
 # Operations
-Diff = namedtuple("Diff", "x y")
-Integral = namedtuple("Integral", "x y")
+diff = namedtuple("Diff", "x y") # type: ignore
+inte = namedtuple("Integral", "x y") # type: ignore
 
-Add = namedtuple("Add", "x y")
-Sub = namedtuple("Sub", "x y")
-Mul = namedtuple("Mul", "x y")
-Div = namedtuple("Div", "x y")
-Pow = namedtuple("Pow", "x y")
-Ln = namedtuple("Ln", "x")
-Sqrt = namedtuple("Sqrt", "x")
+add  = namedtuple("Add", "x y") # type: ignore
+sub  = namedtuple("Sub", "x y") # type: ignore
+mul  = namedtuple("Mul", "x y") # type: ignore
+div  = namedtuple("Div", "x y") # type: ignore
+pow  = namedtuple("Pow", "x y") # type: ignore
+ln   = namedtuple("Ln", "x") # type: ignore
+sqrt = namedtuple("Sqrt", "x") # type: ignore
 
-Sin = namedtuple("Sin", "x")
-Cos = namedtuple("Cos", "x")
+sin  = namedtuple("Sin", "x") # type: ignore
+cos  = namedtuple("Cos", "x") # type: ignore
 
 # Allow constant folding via an eval function
 def eval_math(car, cdr):
@@ -42,81 +43,89 @@ def eval_math(car, cdr):
     try:
         a = float(args[0])
         b = float(args[1])
-        if op == Add:
+        if op == add:
             return a + b
-        if op == Sub:
+        if op == sub:
             return a - b
-        if op == Mul:
+        if op == mul:
             return a * b
-        if op == Div and b != 0.0:
+        if op == div and b != 0.0:
             return a / b
     except:
         pass
     return None
 
-
 # Rewrite rules, not all are currently used since gaurds aren't in snake-egg yet
-a, b, c, x, f, g, y = vars("a b c x f g y")  # type: ignore
-list_rules: list[list[Any]] = [
-    # name,        from,               to
-    ["comm-add", Add(a, b), Add(b, a)],
-    ["comm-mul", Mul(a, b), Mul(b, a)],
-    ["assoc-add", Add(a, Add(b, c)), Add(Add(a, b), c)],
-    ["assoc-mul", Mul(a, Mul(b, c)), Mul(Mul(a, b), c)],
-    ["sub-canon", Sub(a, b), Add(a, Mul(-1, b))],
-    # rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
-    # // rw!("canon-sub"; "(+ ?a (* -1 ?b))"  => "(- ?a ?b)"),
-    # // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
-    ["zero-add", Add(a, 0), a],
-    ["zero-mul", Mul(a, 0), 0],
-    ["one-mul", Mul(a, 1), a],
-    ["add-zero", a, Add(a, 0)],
-    ["mul-one", a, Mul(a, 1)],
-    ["cancel-sub", Sub(a, a), 0],
-    # rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
-    ["distribute", Mul(a, Add(b, c)), Add(Mul(a, b), Mul(a, c))],
-    ["factor", Add(Mul(a, b), Mul(a, c)), Mul(a, Add(b, c))],
-    ["pow-mul", Mul(Pow(a, b), Pow(a, c)), Pow(a, Add(b, c))],
-    # rw!("pow0"; "(pow ?x 0)" => "1"
-    #            if is_not_zero("?x")),
-    ["pow1", Pow(x, 1), x],
-    ["pow2", Pow(x, 2), Mul(x, x)],
-    # rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
-    #            if is_not_zero("?x")),
-    # rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
-    # rw!("d-variable"; "(d ?x ?x)" => "1" if is_sym("?x")),
-    # rw!("d-constant"; "(d ?x ?c)" => "0" if is_sym("?x") if is_const_or_distinct_var("?c", "?x")),
-    ["d-add", Diff(x, Add(a, b)), Add(Diff(x, a), Diff(x, b))],
-    ["d-mul", Diff(x, Mul(a, b)), Add(Mul(a, Diff(x, b)), Mul(b, Diff(x, a)))],
-    ["d-sin", Diff(x, Sin(x)), Cos(x)],
-    ["d-cos", Diff(x, Cos(x)), Mul(-1, Sin(x))],
-    # rw!("d-ln"; "(d ?x (ln ?x))" => "(/ 1 ?x)" if is_not_zero("?x")),
-    # rw!("d-power";
-    #     "(d ?x (pow ?f ?g))" =>
-    #     "(* (pow ?f ?g)
-    #         (+ (* (d ?x ?f)
-    #               (/ ?g ?f))
-    #            (* (d ?x ?g)
-    #               (ln ?f))))"
-    #     if is_not_zero("?f")
-    #     if is_not_zero("?g")
-    # ),
-    ["i-one", Integral(1, x), x],
-    # rw!("i-power-const"; "(i (pow ?x ?c) ?x)" =>
-    #            "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if is_const("?c")),
-    ["i-cos", Integral(Cos(x), x), Sin(x)],
-    ["i-sin", Integral(Sin(x), x), Mul(-1, Cos(x))],
-    ["i-sum", Integral(Add(f, g), x), Add(Integral(f, x), Integral(g, x))],
-    ["i-dif", Integral(Sub(f, g), x), Sub(Integral(f, x), Integral(g, x))],
-    [
-        "i-parts",
-        Integral(Mul(a, b), x),
-        Sub(Mul(a, Integral(b, x)), Integral(Mul(Diff(x, a), Integral(b, x)), x)),
-    ],
+a, b, c, x, f, g, y = vars("a b c x f g y") # type: ignore
+list_rules: List[List[Any]] = [
+  # name,        from,               to
+  ["comm-add",   add(a, b),          add(b, a)],
+  ["comm-mul",   mul(a, b),          mul(b, a)],
+  ["assoc-add",  add(a, add(b, c)),  add(add(a, b), c)],
+  ["assoc-mul",  mul(a, mul(b, c)),  mul(mul(a, b), c)],
+
+  ["sub-canon",  sub(a, b),  add(a, mul(-1, b))],
+  # rw!("div-canon"; "(/ ?a ?b)" => "(* ?a (pow ?b -1))" if is_not_zero("?b")),
+  # // rw!("canon-sub"; "(+ ?a (* -1 ?b))"  => "(- ?a ?b)"),
+  # // rw!("canon-div"; "(* ?a (pow ?b -1))" => "(/ ?a ?b)" if is_not_zero("?b")),
+
+  ["zero-add",  add(a, 0),  a],
+  ["zero-mul",  mul(a, 0),  0],
+  ["one-mul",   mul(a, 1),  a],
+
+  ["add-zero",  a,  add(a, 0)],
+  ["mul-one",   a,  mul(a, 1)],
+
+  ["cancel-sub",  sub(a, a),  0],
+  # rw!("cancel-div"; "(/ ?a ?a)" => "1" if is_not_zero("?a")),
+
+  ["distribute",  mul(a, add(b, c)),          add(mul(a, b), mul(a, c))],
+  ["factor",      add(mul(a, b), mul(a, c)),  mul(a, add(b, c))],
+
+  ["pow-mul",  mul(pow(a, b), pow(a, c)),  pow(a, add(b, c))],
+  # rw!("pow0"; "(pow ?x 0)" => "1"
+  #            if is_not_zero("?x")),
+  ["pow1",     pow(x, 1),                  x],
+  ["pow2",     pow(x, 2),                  mul(x, x)],
+  # rw!("pow-recip"; "(pow ?x -1)" => "(/ 1 ?x)"
+  #            if is_not_zero("?x")),
+  # rw!("recip-mul-div"; "(* ?x (/ 1 ?x))" => "1" if is_not_zero("?x")),
+
+  # rw!("d-variable"; "(d ?x ?x)" => "1" if is_sym("?x")),
+  # rw!("d-constant"; "(d ?x ?c)" => "0" if is_sym("?x") if is_const_or_distinct_var("?c", "?x")),
+
+  ["d-add",  diff(x, add(a, b)),  add(diff(x, a), diff(x, b))],
+  ["d-mul",  diff(x, mul(a, b)),  add(mul(a, diff(x, b)), mul(b, diff(x, a)))],
+
+  ["d-sin",  diff(x, sin(x)),  cos(x)],
+  ["d-cos",  diff(x, cos(x)),  mul(-1, sin(x))],
+
+  # rw!("d-ln"; "(d ?x (ln ?x))" => "(/ 1 ?x)" if is_not_zero("?x")),
+
+  # rw!("d-power";
+  #     "(d ?x (pow ?f ?g))" =>
+  #     "(* (pow ?f ?g)
+  #         (+ (* (d ?x ?f)
+  #               (/ ?g ?f))
+  #            (* (d ?x ?g)
+  #               (ln ?f))))"
+  #     if is_not_zero("?f")
+  #     if is_not_zero("?g")
+  # ),
+
+  ["i-one",    inte(1, x),          x],
+  # rw!("i-power-const"; "(i (pow ?x ?c) ?x)" =>
+  #            "(/ (pow ?x (+ ?c 1)) (+ ?c 1))" if is_const("?c")),
+  ["i-cos",    inte(cos(x), x),     sin(x)],
+  ["i-sin",    inte(sin(x), x),     mul(-1, cos(x))],
+  ["i-sum",    inte(add(f, g), x),  add(inte(f, x), inte(g, x))],
+  ["i-dif",    inte(sub(f, g), x),  sub(inte(f, x), inte(g, x))],
+  ["i-parts",  inte(mul(a, b), x),
+        sub(mul(a, inte(b, x)), inte(mul(diff(x, a), inte(b, x)), x))],
 ]
 
 # Turn the lists into rewrites
-rules = list[Rewrite]()
+rules = list()
 for l in list_rules:
     name = l[0]
     frm = l[1]
@@ -128,7 +137,6 @@ a = "a"
 x = "x"
 y = "y"
 five = "five"
-
 
 def is_equal(expr_a, expr_b, iters=7):
     egraph = EGraph(eval_math)
@@ -142,23 +150,24 @@ def is_equal(expr_a, expr_b, iters=7):
 
 
 class TestMathEgraph(unittest.TestCase):
+
     def test_math_associate_adds(self):
-        expr_a = Add(1, Add(2, Add(3, Add(4, Add(5, Add(6, 7))))))
-        expr_b = Add(7, Add(6, Add(5, Add(4, Add(3, Add(2, 1))))))
+        expr_a = add(1, add(2, add(3, add(4, add(5, add(6, 7))))))
+        expr_b = add(7, add(6, add(5, add(4, add(3, add(2, 1))))))
         self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_math_simplify_add(self):
-        expr_a = Add(x, Add(x, Add(x, x)))
-        expr_b = Mul(4, x)
+        expr_a = add(x, add(x, add(x, x)))
+        expr_b = mul(4, x)
         self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_math_powers(self):
-        expr_a = Mul(Pow(2, x), Pow(2, y))
-        expr_b = Pow(2, Add(x, y))
+        expr_a = mul(pow(2, x), pow(2, y))
+        expr_b = pow(2, add(x, y))
         self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_math_simplify_const(self):
-        expr_a = Add(1, Sub(a, Mul(Sub(2, 1), a)))
+        expr_a = add(1, sub(a, mul(sub(2, 1), a)))
         expr_b = 1
         self.assertTrue(is_equal(expr_a, expr_b))
 
@@ -169,8 +178,8 @@ class TestMathEgraph(unittest.TestCase):
     #     self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_math_simplify_factor(self):
-        expr_a = Mul(Add(x, 3), Add(x, 1))
-        expr_b = Add(Add(Mul(x, x), Mul(4, x)), 3)
+        expr_a = mul(add(x, 3), add(x, 1))
+        expr_b = add(add(mul(x, x), mul(4, x)), 3)
         self.assertTrue(is_equal(expr_a, expr_b))
 
     # def test_math_diff_same(self):
@@ -209,13 +218,13 @@ class TestMathEgraph(unittest.TestCase):
     #     self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_integ_one(self):
-        expr_a = Integral(1, x)
+        expr_a = inte(1, x)
         expr_b = x
         self.assertTrue(is_equal(expr_a, expr_b))
 
     def test_integ_sin(self):
-        expr_a = Integral(Cos(x), x)
-        expr_b = Sin(x)
+        expr_a = inte(cos(x), x)
+        expr_b = sin(x)
         self.assertTrue(is_equal(expr_a, expr_b))
 
     # def test_integ_x(self):
@@ -239,5 +248,7 @@ class TestMathEgraph(unittest.TestCase):
     #     self.assertTrue(is_equal(expr_a, expr_b))
 
 
-if __name__ == "__main__":
+
+
+if __name__ == '__main__':
     unittest.main(verbosity=2)

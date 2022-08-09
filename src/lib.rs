@@ -49,25 +49,25 @@ macro_rules! py_object {
 
 #[pyclass]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct Id(egg::Id);
+struct PyId(egg::Id);
 
-py_object!(impl Id {});
+py_object!(impl PyId {});
 
 #[pyclass]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct Var(egg::Var);
+struct PyVar(egg::Var);
 
-py_object!(impl Var {
+py_object!(impl PyVar {
     #[new]
     fn new(str: &PyString) -> Self {
         Self::from_str(str.to_string_lossy().as_ref())
     }
 });
 
-impl Var {
+impl PyVar {
     fn from_str(str: &str) -> Self {
         let v = format!("?{}", str);
-        Var(v.parse().unwrap())
+        PyVar(v.parse().unwrap())
     }
 }
 
@@ -189,12 +189,12 @@ impl Display for PyLang {
 }
 
 #[pyclass]
-struct Pattern {
+struct PyPattern {
     pattern: egg::Pattern<PyLang>,
 }
 
 #[pymethods]
-impl Pattern {
+impl PyPattern {
     #[new]
     fn new(tree: &PyAny) -> Self {
         let mut ast = egg::PatternAst::default();
@@ -202,13 +202,19 @@ impl Pattern {
         let pattern = egg::Pattern::from(ast);
         Self { pattern }
     }
+
+    // // fn search(&self, egraph: &EGraph<L, N>) -> Vec<SearchMatches<L>> {
+    // fn search(&self, egraph: &EGraph) -> Vec<SearchMatches> {
+    //     let result = self.pattern.search(egraph);
+
+    //     //.into_iter().map(|m| SearchMatches { matches: m }).collect()
+    // }
 }
 
-
 fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
-    if let Ok(id) = tree.extract::<Id>() {
+    if let Ok(id) = tree.extract::<PyId>() {
         panic!("Ids are unsupported in patterns: {}", id.0)
-    } else if let Ok(var) = tree.extract::<Var>() {
+    } else if let Ok(var) = tree.extract::<PyVar>() {
         ast.add(egg::ENodeOrVar::Var(var.0))
     } else if let Ok(tuple) = tree.downcast::<PyTuple>() {
         let op = PyLang::op(
@@ -222,24 +228,24 @@ fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
 }
 
 #[pyclass]
-struct Rewrite {
+struct PyRewrite {
     rewrite: egg::Rewrite<PyLang, PyAnalysis>,
 }
 
 #[pymethods]
-impl Rewrite {
+impl PyRewrite {
     #[new]
     #[args(name = "\"\"")]
     fn new(lhs: &PyAny, rhs: &PyAny, name: &str) -> Self {
-        let searcher = Pattern::new(lhs).pattern;
-        let applier = Pattern::new(rhs).pattern;
+        let searcher = PyPattern::new(lhs).pattern;
+        let applier = PyPattern::new(rhs).pattern;
 
         let mut name = Cow::Borrowed(name);
         if name == "" {
             name = Cow::Owned(format!("{} => {}", searcher, applier));
         }
         let rewrite = egg::Rewrite::new(name, searcher, applier).expect("Failed to create rewrite");
-        Rewrite { rewrite }
+        PyRewrite { rewrite }
     }
 
     #[getter]
@@ -312,14 +318,14 @@ impl egg::Analysis<PyLang> for PyAnalysis {
 }
 
 #[pyclass]
-struct EGraph {
+struct PyEGraph {
     egraph: egg::EGraph<PyLang, PyAnalysis>,
 }
 
 type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
 
 #[pymethods]
-impl EGraph {
+impl PyEGraph {
     #[new]
     fn new(eval: Option<PyObject>) -> Self {
         Self {
@@ -327,8 +333,8 @@ impl EGraph {
         }
     }
 
-    fn add(&mut self, expr: &PyAny) -> Id {
-        Id(add_rec(&mut self.egraph, expr))
+    fn add(&mut self, expr: &PyAny) -> PyId {
+        PyId(add_rec(&mut self.egraph, expr))
     }
 
     #[args(exprs = "*")]
@@ -361,11 +367,7 @@ impl EGraph {
         self.egraph.rebuild()
     }
 
-    #[args(
-        iter_limit = "10",
-        time_limit = "10.0",
-        node_limit = "100_000",
-    )]
+    #[args(iter_limit = "10", time_limit = "10.0", node_limit = "100_000")]
     fn run(
         &mut self,
         rewrites: &PyList,
@@ -376,7 +378,7 @@ impl EGraph {
         let refs = rewrites
             .iter()
             .map(FromPyObject::extract)
-            .collect::<PyResult<Vec<PyRef<Rewrite>>>>()?;
+            .collect::<PyResult<Vec<PyRef<PyRewrite>>>>()?;
         let egraph = std::mem::take(&mut self.egraph);
         let scheduled_runner = Runner::default();
         let runner = scheduled_runner
@@ -401,7 +403,6 @@ impl EGraph {
             })
             .collect()
     }
-
 }
 
 fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {
@@ -414,9 +415,9 @@ fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {
 }
 
 fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::Id {
-    if let Ok(Id(id)) = expr.extract() {
+    if let Ok(PyId(id)) = expr.extract() {
         egraph.find(id)
-    } else if let Ok(Var(var)) = expr.extract() {
+    } else if let Ok(PyVar(var)) = expr.extract() {
         panic!("Can't add a var: {}", var)
     } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
         let enode = PyLang::op(
@@ -451,17 +452,17 @@ impl<T: IntoPy<PyObject>> FromIterator<T> for SingletonOrTuple<T> {
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn snake_egg(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<EGraph>()?;
-    m.add_class::<Id>()?;
-    m.add_class::<Var>()?;
-    m.add_class::<Pattern>()?;
-    m.add_class::<Rewrite>()?;
+fn _internal(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<PyEGraph>()?;
+    m.add_class::<PyId>()?;
+    m.add_class::<PyVar>()?;
+    m.add_class::<PyPattern>()?;
+    m.add_class::<PyRewrite>()?;
 
     #[pyfn(m)]
-    fn vars(vars: &PyString) -> SingletonOrTuple<Var> {
+    fn vars(vars: &PyString) -> SingletonOrTuple<PyVar> {
         let s = vars.to_string_lossy();
-        s.split_whitespace().map(|s| Var::from_str(s)).collect()
+        s.split_whitespace().map(|s| PyVar::from_str(s)).collect()
     }
     Ok(())
 }

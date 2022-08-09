@@ -5,7 +5,7 @@
 import unittest
 from collections import namedtuple
 
-from snake_egg import EGraph, Rewrite, Var, vars
+from egg import EGraph, Rewrite, Var, vars
 
 # Operations
 AND = namedtuple("And", "x y")

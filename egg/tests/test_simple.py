@@ -4,7 +4,7 @@
 
 from collections import namedtuple
 
-from snake_egg import EGraph, Rewrite, Var, vars
+from egg import EGraph, Rewrite, Var, vars
 
 # Operations
 add = namedtuple("Add", "x y")

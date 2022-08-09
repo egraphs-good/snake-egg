@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 
 use std::cmp::Ordering;
 use std::sync::Mutex;
-use std::{borrow::Cow, fmt::Display, hash::Hash, time::Duration};
+use std::{fmt::Display, hash::Hash, time::Duration};
 
 use pyo3::AsPyPointer;
 use pyo3::{
@@ -239,11 +239,6 @@ impl PyRewrite {
     fn new(lhs: &PyAny, rhs: &PyAny, name: &str) -> Self {
         let searcher = PyPattern::new(lhs).pattern;
         let applier = PyPattern::new(rhs).pattern;
-
-        let mut name = Cow::Borrowed(name);
-        if name == "" {
-            name = Cow::Owned(format!("{} => {}", searcher, applier));
-        }
         let rewrite = egg::Rewrite::new(name, searcher, applier).expect("Failed to create rewrite");
         PyRewrite { rewrite }
     }

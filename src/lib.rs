@@ -317,7 +317,7 @@ impl egg::Analysis<PyLang> for PyAnalysis {
     }
 }
 
-#[pyclass]
+#[pyclass(subclass)]
 struct PyEGraph {
     egraph: egg::EGraph<PyLang, PyAnalysis>,
 }
@@ -393,7 +393,7 @@ impl PyEGraph {
     }
 
     #[args(exprs = "*")]
-    fn extract(&mut self, py: Python, exprs: &PyTuple) -> SingletonOrTuple<PyObject> {
+    fn extract(&mut self, py: Python, exprs: &PyTuple) -> Vec<PyObject> {
         let ids: Vec<egg::Id> = exprs.iter().map(|expr| self.add(expr).0).collect();
         let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
         ids.iter()
@@ -430,24 +430,6 @@ fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::I
     }
 }
 
-struct SingletonOrTuple<T>(Vec<T>);
-
-impl<T: IntoPy<PyObject>> IntoPy<PyObject> for SingletonOrTuple<T> {
-    fn into_py(mut self, py: Python) -> PyObject {
-        match self.0.len() {
-            0 => panic!("Shouldn't be empty"),
-            1 => self.0.pop().unwrap().into_py(py),
-            _ => PyTuple::new(py, self.0.into_iter().map(|x| x.into_py(py))).into_py(py),
-        }
-    }
-}
-
-impl<T: IntoPy<PyObject>> FromIterator<T> for SingletonOrTuple<T> {
-    fn from_iter<TS: IntoIterator<Item = T>>(iter: TS) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}
-
 /// A Python module implemented in Rust. The name of this function must match
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
@@ -460,7 +442,7 @@ fn _internal(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyRewrite>()?;
 
     #[pyfn(m)]
-    fn vars(vars: &PyString) -> SingletonOrTuple<PyVar> {
+    fn vars(vars: &PyString) -> Vec<PyVar> {
         let s = vars.to_string_lossy();
         s.split_whitespace().map(|s| PyVar::from_str(s)).collect()
     }

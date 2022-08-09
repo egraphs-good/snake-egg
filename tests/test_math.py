@@ -7,27 +7,24 @@
 #   + this disables some rules and tests
 # * the last three tests
 
-from snake_egg import EGraph, Rewrite, Var, vars
-
-import unittest
-
 from collections import namedtuple
 
+from snake_egg import EGraph, Rewrite, Var, vars
 
 # Operations
 diff = namedtuple("Diff", "x y")
 inte = namedtuple("Integral", "x y")
 
-add  = namedtuple("Add", "x y")
-sub  = namedtuple("Sub", "x y")
-mul  = namedtuple("Mul", "x y")
-div  = namedtuple("Div", "x y")
-pow  = namedtuple("Pow", "x y")
-ln   = namedtuple("Ln", "x")
+add = namedtuple("Add", "x y")
+sub = namedtuple("Sub", "x y")
+mul = namedtuple("Mul", "x y")
+div = namedtuple("Div", "x y")
+pow = namedtuple("Pow", "x y")
+ln = namedtuple("Ln", "x")
 sqrt = namedtuple("Sqrt", "x")
 
-sin  = namedtuple("Sin", "x")
-cos  = namedtuple("Cos", "x")
+sin = namedtuple("Sin", "x")
+cos = namedtuple("Cos", "x")
 
 # Allow constant folding via an eval function
 def eval_math(car, cdr):
@@ -55,8 +52,11 @@ def eval_math(car, cdr):
         pass
     return None
 
+
 # Rewrite rules, not all are currently used since gaurds aren't in snake-egg yet
 a, b, c, x, f, g, y = vars("a b c x f g y")
+
+# fmt: off
 list_rules = [
   # name,        from,               to
   ["comm-add",   add(a, b),          add(b, a)],
@@ -123,6 +123,7 @@ list_rules = [
   ["i-parts",  inte(mul(a, b), x),
         sub(mul(a, inte(b, x)), inte(mul(diff(x, a), inte(b, x)), x))],
 ]
+# fmt: on
 
 # Turn the lists into rewrites
 rules = list()
@@ -138,6 +139,7 @@ x = "x"
 y = "y"
 five = "five"
 
+
 def is_equal(expr_a, expr_b, iters=7):
     egraph = EGraph(eval_math)
 
@@ -149,106 +151,107 @@ def is_equal(expr_a, expr_b, iters=7):
     return egraph.equiv(id_a, id_b)
 
 
-class TestMathEgraph(unittest.TestCase):
-
-    def test_math_associate_adds(self):
-        expr_a = add(1, add(2, add(3, add(4, add(5, add(6, 7))))))
-        expr_b = add(7, add(6, add(5, add(4, add(3, add(2, 1))))))
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_math_simplify_add(self):
-        expr_a = add(x, add(x, add(x, x)))
-        expr_b = mul(4, x)
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_math_powers(self):
-        expr_a = mul(pow(2, x), pow(2, y))
-        expr_b = pow(2, add(x, y))
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_math_simplify_const(self):
-        expr_a = add(1, sub(a, mul(sub(2, 1), a)))
-        expr_b = 1
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_simplify_root(self):
-    #     expr_a = div(1, sub(div(add(1, sqrt(five)), 2),
-    #                         div(sub(1, sqrt(five)), 2)))
-    #     expr_b = div(1, sqrt(five))
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_math_simplify_factor(self):
-        expr_a = mul(add(x, 3), add(x, 1))
-        expr_b = add(add(mul(x, x), mul(4, x)), 3)
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_diff_same(self):
-    #     expr_a = diff(x, x)
-    #     expr_b = 1
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_diff_different(self):
-    #     expr_a = diff(x, y)
-    #     expr_b = 0
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_diff_simple1(self):
-    #     expr_a = diff(x, add(1, mul(2, x)))
-    #     expr_b = 2
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_diff_simple2(self):
-    #     expr_a = diff(x, add(1, mul(y, x)))
-    #     expr_b = y
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_math_diff_ln(self):
-    #     expr_a = diff(x, ln(x))
-    #     expr_b = div(1, x)
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_diff_power_simple(self):
-    #     expr_a = diff(x, pow(x, 3))
-    #     expr_b = mul(3, pow(x, 2))
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_diff_power_harder(self):
-    #     expr_a = diff(x, sub(pow(x, 3), mul(7, pow(x, 2))))
-    #     expr_b = mul(x, sub(mul(3, x), 14))
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_integ_one(self):
-        expr_a = inte(1, x)
-        expr_b = x
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    def test_integ_sin(self):
-        expr_a = inte(cos(x), x)
-        expr_b = sin(x)
-        self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_integ_x(self):
-    #     expr_a = inte(pow(x, 1), x)
-    #     expr_b = div(pow(x, 2), 2)
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_integ_part1(self):
-    #     expr_a = inte(mul(x, cos(x)), x)
-    #     expr_b = add(mul(x, sin(x)), cos(x))
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_integ_part2(self):
-    #     expr_a = inte(mul(cos(x), x), x)
-    #     expr_b = add(mul(x, sin(x)), cos(x))
-    #     self.assertTrue(is_equal(expr_a, expr_b))
-
-    # def test_integ_part3(self):
-    #     expr_a = inte(ln(x), x)
-    #     expr_b = sub(mul(x, ln(x)), x)
-    #     self.assertTrue(is_equal(expr_a, expr_b))
+def test_math_associate_adds():
+    expr_a = add(1, add(2, add(3, add(4, add(5, add(6, 7))))))
+    expr_b = add(7, add(6, add(5, add(4, add(3, add(2, 1))))))
+    assert is_equal(expr_a, expr_b)
 
 
+def test_math_simplify_add():
+    expr_a = add(x, add(x, add(x, x)))
+    expr_b = mul(4, x)
+    assert is_equal(expr_a, expr_b)
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+def test_math_powers():
+    expr_a = mul(pow(2, x), pow(2, y))
+    expr_b = pow(2, add(x, y))
+    assert is_equal(expr_a, expr_b)
+
+
+def test_math_simplify_const():
+    expr_a = add(1, sub(a, mul(sub(2, 1), a)))
+    expr_b = 1
+    assert is_equal(expr_a, expr_b)
+
+
+# def test_math_simplify_root(self):
+#     expr_a = div(1, sub(div(add(1, sqrt(five)), 2),
+#                         div(sub(1, sqrt(five)), 2)))
+#     expr_b = div(1, sqrt(five))
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+
+def test_math_simplify_factor():
+    expr_a = mul(add(x, 3), add(x, 1))
+    expr_b = add(add(mul(x, x), mul(4, x)), 3)
+    assert is_equal(expr_a, expr_b)
+
+
+# def test_math_diff_same(self):
+#     expr_a = diff(x, x)
+#     expr_b = 1
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_math_diff_different(self):
+#     expr_a = diff(x, y)
+#     expr_b = 0
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_math_diff_simple1(self):
+#     expr_a = diff(x, add(1, mul(2, x)))
+#     expr_b = 2
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_math_diff_simple2(self):
+#     expr_a = diff(x, add(1, mul(y, x)))
+#     expr_b = y
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_math_diff_ln(self):
+#     expr_a = diff(x, ln(x))
+#     expr_b = div(1, x)
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_diff_power_simple(self):
+#     expr_a = diff(x, pow(x, 3))
+#     expr_b = mul(3, pow(x, 2))
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_diff_power_harder(self):
+#     expr_a = diff(x, sub(pow(x, 3), mul(7, pow(x, 2))))
+#     expr_b = mul(x, sub(mul(3, x), 14))
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+
+def test_integ_one():
+    expr_a = inte(1, x)
+    expr_b = x
+    assert is_equal(expr_a, expr_b)
+
+
+def test_integ_sin():
+    expr_a = inte(cos(x), x)
+    expr_b = sin(x)
+    assert is_equal(expr_a, expr_b)
+
+
+# def test_integ_x(self):
+#     expr_a = inte(pow(x, 1), x)
+#     expr_b = div(pow(x, 2), 2)
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_integ_part1(self):
+#     expr_a = inte(mul(x, cos(x)), x)
+#     expr_b = add(mul(x, sin(x)), cos(x))
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_integ_part2(self):
+#     expr_a = inte(mul(cos(x), x), x)
+#     expr_b = add(mul(x, sin(x)), cos(x))
+#     self.assertTrue(is_equal(expr_a, expr_b))
+
+# def test_integ_part3(self):
+#     expr_a = inte(ln(x), x)
+#     expr_b = sub(mul(x, ln(x)), x)
+#     self.assertTrue(is_equal(expr_a, expr_b))

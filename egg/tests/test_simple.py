@@ -5,29 +5,28 @@
 from collections import namedtuple
 
 from egg import EGraph, Rewrite, Var, vars
+from typing import NamedTuple, Any
 
 # Operations
-add = namedtuple("Add", "x y")
-mul = namedtuple("Mul", "x y")
+class Add(NamedTuple):
+    x: Any
+    y: Any
+
+
+class Mul(NamedTuple):
+    x: Any
+    y: Any
 
 
 # Rewrite rules
 a, b = vars("a b")
-list_rules = [
-    ["commute-add", add(a, b), add(b, a)],
-    ["commute-mul", mul(a, b), mul(b, a)],
-    ["add-0", add(a, 0), a],
-    ["mul-0", mul(a, 0), 0],
-    ["mul-1", mul(a, 1), a],
+rules = [
+    Rewrite(Add(a, b), Add(b, a), name="commute-add"),
+    Rewrite(Mul(a, b), Mul(b, a), name="commute-mul"),
+    Rewrite(Add(a, 0), a, name="add-0"),
+    Rewrite(Mul(a, 0), 0, name="mul-0"),
+    Rewrite(Mul(a, 1), a, name="mul-1"),
 ]
-
-# Turn the lists into rewrites
-rules = list()
-for l in list_rules:
-    name = l[0]
-    frm = l[1]
-    to = l[2]
-    rules.append(Rewrite(frm, to, name))
 
 
 def simplify(expr, iters=7):
@@ -39,9 +38,9 @@ def simplify(expr, iters=7):
 
 
 def test_simple_1():
-    assert simplify(mul(0, 42)) == 0
+    assert simplify(Mul(0, 42)) == 0
 
 
 def test_simple_2():
     foo = "foo"
-    assert simplify(add(0, mul(1, foo))) == foo
+    assert simplify(Add(0, Mul(1, foo))) == foo

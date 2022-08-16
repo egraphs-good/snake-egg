@@ -7,7 +7,6 @@ from ._internal import vars
 
 
 class EGraph(PyEGraph):
-
     def extract(self, expr):
         result = super().extract(expr)
         if len(result) == 1:

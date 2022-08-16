@@ -140,7 +140,7 @@ y = "y"
 five = "five"
 
 
-def is_equal(expr_a, expr_b, iters=7):
+def is_equal(expr_a, expr_b, iters=5):
     egraph = EGraph(eval_math)
 
     id_a = egraph.add(expr_a)

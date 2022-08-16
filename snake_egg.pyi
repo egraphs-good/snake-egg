@@ -1,5 +1,7 @@
 from collections.abc import Callable, Hashable, Iterable
-from typing import Optional, final
+from typing import Optional
+
+from typing_extensions import final
 
 _Expr = Hashable
 

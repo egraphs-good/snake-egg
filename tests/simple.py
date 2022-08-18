@@ -10,18 +10,18 @@ from collections import namedtuple
 
 
 # Operations
-add  = namedtuple("Add", "x y") # type: ignore
-mul  = namedtuple("Mul", "x y") # type: ignore
+Add  = namedtuple("Add", "x y")
+Mul  = namedtuple("Mul", "x y")
 
 
 # Rewrite rules
 a, b = vars("a b") # type: ignore
 list_rules: List[List[Any]] = [
-  ["commute-add",  add(a, b),  add(b, a)],
-  ["commute-mul",  mul(a, b),  mul(b, a)],
-  ["add-0",        add(a, 0),  a],
-  ["mul-0",        mul(a, 0),  0],
-  ["mul-1",        mul(a, 1),  a],
+  ["commute-add",  Add(a, b),  Add(b, a)],
+  ["commute-mul",  Mul(a, b),  Mul(b, a)],
+  ["add-0",        Add(a, 0),  a],
+  ["mul-0",        Mul(a, 0),  0],
+  ["mul-1",        Mul(a, 1),  a],
 ]
 
 # Turn the lists into rewrites
@@ -44,11 +44,11 @@ def simplify(expr, iters=7):
 class TestSimpleEgraph(unittest.TestCase):
 
     def test_simple_1(self):
-        self.assertEqual(simplify(mul(0, 42)), 0)
+        self.assertEqual(simplify(Mul(0, 42)), 0)
 
     def test_simple_2(self):
         foo = "foo"
-        self.assertEqual(simplify(add(0, mul(1, foo))), foo)
+        self.assertEqual(simplify(Add(0, Mul(1, foo))), foo)
 
 
 if __name__ == '__main__':

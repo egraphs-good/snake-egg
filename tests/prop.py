@@ -10,10 +10,10 @@ from collections import namedtuple
 
 
 # Operations
-AND = namedtuple("And", "x y") # type: ignore
-NOT = namedtuple("Not", "x") # type: ignore
-OR  = namedtuple("Or", "x y") # type: ignore
-IM  = namedtuple("Implies", "x y") # type: ignore
+And = namedtuple("And", "x y")
+Not = namedtuple("Not", "x")
+Or  = namedtuple("Or", "x y")
+Implies = namedtuple("Implies", "x y")
 
 # Allow constant folding via an eval function
 def eval_prod(car, cdr):
@@ -35,17 +35,17 @@ def eval_prod(car, cdr):
         return None
 
     a = args[0]
-    if op == NOT:
+    if op == Not:
         return not a
 
     b = args[1]
-    if op == AND:
+    if op == And:
         return a and b
 
-    if op == OR:
+    if op == Or:
         return a or b
 
-    if op == IM:
+    if op == Implies:
         return a or not b
 
     return None
@@ -54,20 +54,20 @@ def eval_prod(car, cdr):
 # Rewrite rules
 a, b, c = vars("a b c") # type: ignore
 list_rules: List[List[Any]] = [
-  ["def_imply",        IM(a, b),                      OR(NOT(a), b)],
-  ["double_neg",       NOT(NOT(a)),                   a],
-  ["def_imply_flip",   OR(NOT(a), b),                 IM(a, b)],
-  ["double_neg_flip",  a,                             NOT(NOT(a))],
-  ["assoc_or",         OR(a, OR(b, c)),               OR(OR(a, b), c)],
-  ["dist_and_or",      AND(a, OR(b, c)),              OR(AND(a, b), AND(a, c))],
-  ["dist_or_and",      OR(a, AND(b, c)),              AND(OR(a, b), OR(a, c))],
-  ["comm_or",          OR(a, b),                      OR(b, a)],
-  ["comm_and",         AND(a, b),                     AND(b, a)],
-  ["lem",              OR(a, NOT(a)),                 True],
-  ["or_true",          OR(a, True),                   True],
-  ["and_true",         AND(a, True),                  a],
-  ["contrapositive",   IM(a, b),                      IM(NOT(b), NOT(a))],
-  ["lem_imply",        AND(IM(a, b), IM(NOT(a), c)),  OR(b, c)],
+  ["def_imply",        Implies(a, b),                 Or(Not(a), b)],
+  ["double_neg",       Not(Not(a)),                   a],
+  ["def_imply_flip",   Or(Not(a), b),                 Implies(a, b)],
+  ["double_neg_flip",  a,                             Not(Not(a))],
+  ["assoc_or",         Or(a, Or(b, c)),               Or(Or(a, b), c)],
+  ["dist_and_or",      And(a, Or(b, c)),              Or(And(a, b), And(a, c))],
+  ["dist_or_and",      Or(a, And(b, c)),              And(Or(a, b), Or(a, c))],
+  ["comm_or",          Or(a, b),                      Or(b, a)],
+  ["comm_and",         And(a, b),                     And(b, a)],
+  ["lem",              Or(a, Not(a)),                 True],
+  ["or_true",          Or(a, True),                   True],
+  ["and_true",         And(a, True),                  a],
+  ["contrapositive",   Implies(a, b),                 Implies(Not(b), Not(a))],
+  ["lem_imply",        And(Implies(a, b), Implies(Not(a), c)),  Or(b, c)],
 ]
 
 # Turn the lists into rewrites
@@ -96,26 +96,26 @@ z = "z"
 class TestPropEgraph(unittest.TestCase):
 
     def test_prove_contrapositive(self):
-        prove_something(IM(x,y),
-                        [IM(x,y),
-                         OR(NOT(x), y),
-                         OR(NOT(x), NOT(NOT(y))),
-                         OR(NOT(NOT(y)), NOT(x)),
-                         IM(NOT(y), NOT(x))],
+        prove_something(Implies(x,y),
+                        [Implies(x,y),
+                         Or(Not(x), y),
+                         Or(Not(x), Not(Not(y))),
+                         Or(Not(Not(y)), Not(x)),
+                         Implies(Not(y), Not(x))],
                         self)
 
     def test_prove_chain(self):
-        prove_something(AND(IM(x, y), IM(y, z)),
-                        [AND(IM(x, y), IM(y, z)),
-                         AND(IM(NOT(y), NOT(x)), IM(y, z)),
-                         AND(IM(y, z), IM(NOT(y), NOT(x))),
-                         OR(z, NOT(x)),
-                         OR(NOT(x), z),
-                         IM(x, z)],
+        prove_something(And(Implies(x, y), Implies(y, z)),
+                        [And(Implies(x, y), Implies(y, z)),
+                         And(Implies(Not(y), Not(x)), Implies(y, z)),
+                         And(Implies(y, z), Implies(Not(y), Not(x))),
+                         Or(z, Not(x)),
+                         Or(Not(x), z),
+                         Implies(x, z)],
                         self)
 
     def test_prove_fold(self):
-        prove_something(OR(AND(False, True), AND(True, False)),
+        prove_something(Or(And(False, True), And(True, False)),
                         [False],
                         self)
 

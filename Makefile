@@ -22,8 +22,8 @@ test: egg/tests/*.py build venv
 stubtest: snake_egg.pyi build venv
 	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg --ignore-missing-stub
 
-mypy: snake_egg.pyi tests/*.py build venv
-	$(activate) && maturin develop --extras=dev && mypy tests
+mypy: snake_egg/snake_egg.pyi build venv
+	$(activate) && maturin develop --extras=dev && mypy snake_egg
 
 install: venv
 	$(activate) maturin build --release && \

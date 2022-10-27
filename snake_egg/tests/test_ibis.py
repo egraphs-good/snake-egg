@@ -1,18 +1,16 @@
-import ibis
 import functools
-import ibis.expr.operations as ops
+
+import ibis
 import ibis.expr.datatypes as dt
+import ibis.expr.operations as ops
 
-
-from egg import EGraph, Rewrite, Var, vars
-
+from snake_egg.snake_egg import EGraph, Rewrite, Var, vars
 
 zero = ops.Literal(0, dtype=dt.int64)
 one = ops.Literal(1, dtype=dt.int64)
 two = ops.Literal(2, dtype=dt.float64)
 
-x_, y_, z_, table, preds1, preds2, distinct = vars("x y z table preds1 preds2 distinct")
-
+x_, y_, z_, table, preds1, preds2, distinct = vars("x y z table preds1 preds2 distinct") # type: ignore
 
 def just_x(x):
     return x

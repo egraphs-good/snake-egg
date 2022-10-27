@@ -2,36 +2,25 @@
 
 # This is a reimplementation of simple.rs from the Rust egg repository
 
-from dataclasses import dataclass
+from collections import namedtuple
+from typing import Any, NamedTuple
 
-from egg import EGraph, Rewrite, Var, vars
-from typing import Any
+from snake_egg.snake_egg import EGraph, Rewrite, Var, vars
 
 
 # Operations
-@dataclass(frozen=True)
-class Add:
+class Add(NamedTuple):
     x: Any
     y: Any
 
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
 
-
-@dataclass(frozen=True)
-class Mul:
+class Mul(NamedTuple):
     x: Any
     y: Any
-
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
 
 
 # Rewrite rules
-a, b = vars("a b")
-
+a, b = vars("a b") # type: ignore
 rules = [
     Rewrite(Add(a, b), Add(b, a), name="commute-add"),
     Rewrite(Mul(a, b), Mul(b, a), name="commute-mul"),
@@ -56,7 +45,3 @@ def test_simple_1():
 def test_simple_2():
     foo = "foo"
     assert simplify(Add(0, Mul(1, foo))) == foo
-
-
-def test_simple_3():
-    assert simplify(Mul(2, Mul(1, "foo"))) == Mul(2, "foo")

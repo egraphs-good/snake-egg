@@ -1,5 +1,5 @@
 use egg::{Analysis, Applier, DidMerge, EGraph, PatternAst, Subst, Symbol};
-use egg::{Id, Language};
+use egg::{Id, Language, Var};
 use once_cell::sync::Lazy;
 use pyo3::AsPyPointer;
 use pyo3::{
@@ -207,6 +207,8 @@ impl Analysis<PythonNode> for PythonAnalysis {
 
 pub struct PythonApplier {
     pub eval: PyObject,
+    /// List of vars in the pattern which this is used with
+    pub vars: Vec<Var>,
 }
 
 impl Applier<PythonNode, PythonAnalysis> for PythonApplier {
@@ -222,8 +224,9 @@ impl Applier<PythonNode, PythonAnalysis> for PythonApplier {
         let py = unsafe { Python::assume_gil_acquired() };
         let kwargs = PyDict::new(py);
 
-        for (var, id) in subst.vec.iter() {
-            let obj = if let Some(data) = egraph[*id].data.clone() {
+        for var in &self.vars {
+            let id = subst[*var];
+            let obj = if let Some(data) = egraph[id].data.clone() {
                 data
             } else {
                 py.None()

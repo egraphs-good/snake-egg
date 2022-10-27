@@ -79,7 +79,10 @@ impl PyRewrite {
     #[args(name = "\"\"")]
     fn new(searcher: PyPattern, applier: &PyAny, name: &str) -> Self {
         let rewrite = if applier.is_callable() {
-            let applier = PythonApplier { eval: applier.into() };
+            let applier = PythonApplier {
+                eval: applier.into(),
+                vars: searcher.pattern.vars(),
+            };
             Rewrite::new(name, searcher.pattern, applier).unwrap()
         } else if let Ok(pat) = applier.extract::<PyPattern>() {
             Rewrite::new(name, searcher.pattern, pat.pattern).unwrap()

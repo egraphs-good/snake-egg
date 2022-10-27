@@ -1,5 +1,4 @@
 use egg::{AstSize, EGraph, Extractor, Id, Pattern, PatternAst, RecExpr, Rewrite, Runner, Var};
-use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyList, PyString, PyTuple};
 use pyo3::{basic::CompareOp, prelude::*};
 

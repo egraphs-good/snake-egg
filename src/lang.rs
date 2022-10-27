@@ -1,4 +1,4 @@
-use egg::{Analysis, Applier, DidMerge, EGraph, PatternAst, Subst, Symbol, ENodeOrVar};
+use egg::{Analysis, Applier, DidMerge, EGraph, PatternAst, Subst, Symbol};
 use egg::{Id, Language};
 use once_cell::sync::Lazy;
 use pyo3::AsPyPointer;

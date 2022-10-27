@@ -12,10 +12,12 @@ venv:
 build: venv
 	$(activate) && maturin build --release
 
-test: tests/*.py build venv
-	$(activate) && maturin develop && python tests/math.py
-	$(activate) && maturin develop && python tests/prop.py
-	$(activate) && maturin develop && python tests/simple.py
+test: egg/tests/*.py build venv
+	$(activate) && maturin develop && python egg/tests/math.py
+	$(activate) && maturin develop && python egg/tests/prop.py
+	$(activate) && maturin develop && python egg/tests/simple.py
+	$(activate) && maturin develop && python egg/tests/ibis.py
+	$(activate) && maturin develop && python egg/tests/dataclasses.py
 
 install: venv
 	$(activate) maturin build --release && \

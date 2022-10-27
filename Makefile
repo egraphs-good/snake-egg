@@ -16,8 +16,8 @@ test: egg/tests/*.py build venv
 	$(activate) && maturin develop && python egg/tests/test_math.py
 	$(activate) && maturin develop && python egg/tests/test_prop.py
 	$(activate) && maturin develop && python egg/tests/test_simple.py
-	$(activate) && maturin develop && python egg/tests/test_ibis.py
-	$(activate) && maturin develop && python egg/tests/test_dataclasses.py
+	$(activate) && maturin develop && pip install https://codeload.github.com/kszucs/ibis/zip/refs/heads/egg && python egg/tests/test_ibis.py
+	$(activate) && maturin develop && python egg/tests/test_dataclass.py
 
 install: venv
 	$(activate) maturin build --release && \

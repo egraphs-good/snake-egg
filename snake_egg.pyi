@@ -1,0 +1,43 @@
+from collections.abc import Callable, Hashable, Iterable
+from typing import Optional
+
+from typing_extensions import final
+
+_Expr = Hashable
+
+@final
+class Id: ...
+
+@final
+class Var:
+    def __init__(self, name: str) -> None: ...
+
+@final
+class Rewrite:
+    def __init__(self, lhs: _Expr, rhs: _Expr, name: str = "") -> None: ...
+    @property
+    def name(self) -> str: ...
+
+@final
+class Pattern:
+    def __init__(self, tree: _Expr) -> None: ...
+
+@final
+class EGraph:
+    def __init__(
+        self, eval: Optional[Callable[[type, Iterable[_Expr]], object]] = None
+    ) -> None: ...
+    def add(self, expr: _Expr) -> Id: ...
+    def union(self, *exprs: _Expr) -> bool: ...
+    def equiv(self, *exprs: _Expr) -> bool: ...
+    def rebuild(self) -> int: ...
+    def run(
+        self,
+        rewrites: list[Rewrite],
+        iter_limit: int = 10,
+        time_limit: float = 10.0,
+        node_limit: int = 100000,
+    ) -> None: ...
+    def extract(self, *exprs: _Expr) -> tuple[_Expr, ...] | _Expr: ...
+
+def vars(vars: str) -> tuple[Var, ...] | Var: ...

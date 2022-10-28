@@ -19,7 +19,7 @@ test: snake_egg/tests/*.py build venv
 	$(activate) && maturin develop && pip install https://codeload.github.com/kszucs/ibis/zip/refs/heads/egg && python snake_egg/tests/test_ibis.py
 	$(activate) && maturin develop && python snake_egg/tests/test_dataclass.py
 
-stubtest: snake_egg.pyi build venv
+stubtest: snake_egg/snake_egg.pyi build venv
 	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg --ignore-missing-stub
 
 mypy: snake_egg/snake_egg.pyi build venv

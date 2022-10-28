@@ -1,9 +1,9 @@
-from ._internal import PyEGraph
-from ._internal import PyId as Id
-from ._internal import PyPattern as Pattern
-from ._internal import PyRewrite as Rewrite
-from ._internal import PyVar as Var
-from ._internal import vars
+from ._internal import PyEGraph  # type: ignore
+from ._internal import vars  # type: ignore
+from ._internal import PyId as Id  # type: ignore
+from ._internal import PyPattern as Pattern  # type: ignore
+from ._internal import PyRewrite as Rewrite  # type: ignore
+from ._internal import PyVar as Var  # type: ignore
 
 
 class EGraph(PyEGraph):

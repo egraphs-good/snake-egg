@@ -5,7 +5,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from snake_egg.snake_egg import EGraph, Rewrite, Var, vars
+from snake_egg import EGraph, Rewrite, Var, vars
 
 
 # Operations

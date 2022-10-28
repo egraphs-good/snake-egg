@@ -10,7 +10,7 @@
 from collections import namedtuple
 from typing import Any, List
 
-from snake_egg.snake_egg import EGraph, Rewrite, vars
+from snake_egg import EGraph, Rewrite, vars
 
 # Operations
 Diff = namedtuple("Diff", "x y")

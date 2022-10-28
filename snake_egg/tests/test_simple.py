@@ -5,7 +5,7 @@
 from collections import namedtuple
 from typing import Any, NamedTuple
 
-from snake_egg.snake_egg import EGraph, Rewrite, Var, vars
+from snake_egg import EGraph, Rewrite, Var, vars
 
 
 # Operations

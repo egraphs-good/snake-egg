@@ -4,7 +4,7 @@ import ibis
 import ibis.expr.datatypes as dt
 import ibis.expr.operations as ops
 
-from snake_egg.snake_egg import EGraph, Rewrite, Var, vars
+from snake_egg import EGraph, Rewrite, Var, vars
 
 zero = ops.Literal(0, dtype=dt.int64)
 one = ops.Literal(1, dtype=dt.int64)

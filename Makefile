@@ -16,7 +16,7 @@ test: snake_egg/tests/*.py build venv
 	$(activate) && maturin develop && python snake_egg/tests/test_math.py
 	$(activate) && maturin develop && python snake_egg/tests/test_prop.py
 	$(activate) && maturin develop && python snake_egg/tests/test_simple.py
-	$(activate) && maturin develop && pip install https://codeload.github.com/kszucs/ibis/zip/refs/heads/egg && python snake_egg/tests/test_ibis.py
+	$(activate) && maturin develop && python snake_egg/tests/test_dynamic.py
 	$(activate) && maturin develop && python snake_egg/tests/test_dataclass.py
 
 stubtest: snake_egg/__init__.pyi build venv

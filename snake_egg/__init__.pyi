@@ -1,5 +1,5 @@
 from collections.abc import Callable, Hashable, Iterable
-from typing import Optional
+from typing import Dict, Optional, Protocol, Union
 
 from typing_extensions import final
 
@@ -12,9 +12,12 @@ class Id: ...
 class Var:
     def __init__(self, name: str) -> None: ...
 
+class _CallableApplier(Protocol):
+    def __call__(self, **substiution: Dict[Var, _Expr]) -> _Expr: ...
+    
 @final
 class Rewrite:
-    def __init__(self, lhs: _Expr, rhs: _Expr, name: str = "") -> None: ...
+    def __init__(self, lhs: _Expr, rhs: Union[_Expr, _CallableApplier], name: str = "") -> None: ...
     @property
     def name(self) -> str: ...
 

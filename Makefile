@@ -31,7 +31,7 @@ install: venv
 	  --find-link ./target/wheels/
 
 doc: venv
-	$(activate) && maturin develop && python -m pydoc -w snake_egg
+	$(activate) && maturin develop && python -m pydoc -w snake_egg.internal
 
 shell: venv
 	$(activate) && maturin develop && python -ic 'import snake_egg'

@@ -2,12 +2,10 @@
 
 # This is a reimplementation of simple.rs from the Rust egg repository
 
-from snake_egg import EGraph, Rewrite, Var, vars
-
-import unittest
-from typing import List, Any
 from collections import namedtuple
+from typing import Any, List
 
+from snake_egg import EGraph, Rewrite, vars
 
 # Operations
 And = namedtuple("And", "x y")
@@ -69,6 +67,7 @@ list_rules: List[List[Any]] = [
   ["contrapositive",   Implies(a, b),                 Implies(Not(b), Not(a))],
   ["lem_imply",        And(Implies(a, b), Implies(Not(a), c)),  Or(b, c)],
 ]
+# fmt: on
 
 # Turn the lists into rewrites
 rules = list()
@@ -79,46 +78,40 @@ for l in list_rules:
     rules.append(Rewrite(frm, to, name))
 
 
-def prove_something(start_expr, goal_exprs, tester):
+def prove_something(start_expr, goal_exprs):
     egraph = EGraph(eval_prod)
     id_start = egraph.add(start_expr)
     egraph.run(rules, 10)
-    for i,goal in enumerate(goal_exprs):
+    for i, goal in enumerate(goal_exprs):
         id_goal = egraph.add(goal)
-        tester.assertTrue(egraph.equiv(id_start, id_goal),
-                          "Couldn't prove goal {}: {}".format(i, goal))
+        assert egraph.equiv(id_start, id_goal), "Couldn't prove goal {}: {}".format(
+            i, goal
+        )
 
 
 x = "x"
 y = "y"
 z = "z"
 
-class TestPropEgraph(unittest.TestCase):
 
-    def test_prove_contrapositive(self):
-        prove_something(Implies(x,y),
-                        [Implies(x,y),
-                         Or(Not(x), y),
-                         Or(Not(x), Not(Not(y))),
-                         Or(Not(Not(y)), Not(x)),
-                         Implies(Not(y), Not(x))],
-                        self)
+def test_prove_contrapositive():
+    prove_something(Implies(x,y),
+                    [Implies(x,y),
+                        Or(Not(x), y),
+                        Or(Not(x), Not(Not(y))),
+                        Or(Not(Not(y)), Not(x)),
+                        Implies(Not(y), Not(x))])
 
-    def test_prove_chain(self):
-        prove_something(And(Implies(x, y), Implies(y, z)),
-                        [And(Implies(x, y), Implies(y, z)),
-                         And(Implies(Not(y), Not(x)), Implies(y, z)),
-                         And(Implies(y, z), Implies(Not(y), Not(x))),
-                         Or(z, Not(x)),
-                         Or(Not(x), z),
-                         Implies(x, z)],
-                        self)
+def test_prove_chain():
+    prove_something(And(Implies(x, y), Implies(y, z)),
+                    [And(Implies(x, y), Implies(y, z)),
+                        And(Implies(Not(y), Not(x)), Implies(y, z)),
+                        And(Implies(y, z), Implies(Not(y), Not(x))),
+                        Or(z, Not(x)),
+                        Or(Not(x), z),
+                        Implies(x, z)])
 
-    def test_prove_fold(self):
-        prove_something(Or(And(False, True), And(True, False)),
-                        [False],
-                        self)
+def test_prove_fold():
+    prove_something(Or(And(False, True), And(True, False)),
+                    [False])
 
-
-if __name__ == '__main__':
-    unittest.main(verbosity=2)

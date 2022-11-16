@@ -12,16 +12,18 @@ venv:
 build: venv
 	$(activate) && maturin build --release
 
-test: tests/*.py build venv
-	$(activate) && maturin develop && python tests/math.py
-	$(activate) && maturin develop && python tests/prop.py
-	$(activate) && maturin develop && python tests/simple.py
+test: snake_egg/tests/*.py build venv
+	$(activate) && maturin develop && python snake_egg/tests/test_math.py
+	$(activate) && maturin develop && python snake_egg/tests/test_prop.py
+	$(activate) && maturin develop && python snake_egg/tests/test_simple.py
+	$(activate) && maturin develop && python snake_egg/tests/test_dynamic.py
+	$(activate) && maturin develop && python snake_egg/tests/test_dataclass.py
 
-stubtest: snake_egg.pyi build venv
+stubtest: snake_egg/__init__.pyi build venv
 	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg --ignore-missing-stub
 
-mypy: snake_egg.pyi tests/*.py build venv
-	$(activate) && maturin develop --extras=dev && mypy tests
+mypy: snake_egg/__init__.pyi build venv
+	$(activate) && maturin develop --extras=dev && mypy snake_egg
 
 install: venv
 	$(activate) maturin build --release && \
@@ -29,7 +31,7 @@ install: venv
 	  --find-link ./target/wheels/
 
 doc: venv
-	$(activate) && maturin develop && python -m pydoc -w snake_egg
+	$(activate) && maturin develop && python -m pydoc -w snake_egg.internal
 
 shell: venv
 	$(activate) && maturin develop && python -ic 'import snake_egg'

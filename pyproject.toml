@@ -1,18 +1,25 @@
-[project]
-name = "snake-egg"
-
 [build-system]
 requires = ["maturin>=0.11,<0.12"]
 build-backend = "maturin"
 dependencies = ["typing-extensions"]
+
+[project]
+name = "snake-egg"
+
+[tool.isort]
+profile = "black"
+
+[tool.maturin]
+sdist-include = ["Cargo.lock"]
 
 [project.optional-dependencies]
 dev = [
   "mypy"
 ]
 [tool.mypy]
-ignore_missing_imports = false
+ignore_missing_imports = true
 warn_redundant_casts = true
 check_untyped_defs = true
 strict_equality = true
 warn_unused_configs = true
+enable_recursive_aliases = true

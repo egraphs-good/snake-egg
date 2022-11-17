@@ -20,7 +20,7 @@ test: snake_egg/tests/*.py build venv
 	$(activate) && maturin develop && python snake_egg/tests/test_dataclass.py
 
 stubtest: snake_egg/__init__.pyi build venv
-	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg --ignore-missing-stub
+	$(activate) && maturin develop --extras=dev && python -m mypy.stubtest snake_egg --ignore-missing-stub --allowlist stubtest_allowlist
 
 mypy: snake_egg/__init__.pyi build venv
 	$(activate) && maturin develop --extras=dev && mypy snake_egg

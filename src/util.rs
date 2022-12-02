@@ -25,7 +25,7 @@ pub fn build_node(egraph: &mut EGraph<PythonNode, PythonAnalysis>, expr: &PyAny)
             expr.get_type()
         };
         //let children = args.iter().map(|arg| expr.getattr(arg).unwrap());
-        let enode = PythonNode::op(class, args.iter().map(|child| build_node(egraph, child)));
+        let enode = PythonNode::op(class, args.iter().map(|child| build_node(egraph, expr.getattr(child).unwrap())));
         egraph.add(enode)
     } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
         let enode = PythonNode::op(
@@ -53,7 +53,7 @@ pub fn build_pattern(ast: &mut PatternAst<PythonNode>, tree: &PyAny) -> Id {
             tree.get_type()
         };
         //let children = args.iter().map(|arg| tree.getattr(arg).unwrap());
-        let enode = PythonNode::op(class, args.iter().map(|child| build_pattern(ast, child)));
+        let enode = PythonNode::op(class, args.iter().map(|child| build_pattern(ast, tree.getattr(child).unwrap())));
         ast.add(ENodeOrVar::ENode(enode))
     } else if let Ok(tuple) = tree.downcast::<PyTuple>() {
         let enode = PythonNode::op(

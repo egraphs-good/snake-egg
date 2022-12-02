@@ -14,23 +14,15 @@ class Add:
     x: Any
     y: Any
 
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
-
 
 @dataclass(frozen=True)
 class Mul:
     x: Any
     y: Any
 
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
-
 
 # Rewrite rules
-a, b = vars("a b") # type: ignore
+a, b = vars("a b")  # type: ignore
 
 rules = [
     Rewrite(Add(a, b), Add(b, a), name="commute-add"),

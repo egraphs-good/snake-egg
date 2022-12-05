@@ -17,7 +17,7 @@ pub fn build_node(egraph: &mut EGraph<PythonNode, PythonAnalysis>, expr: &PyAny)
         egraph.find(id)
     } else if let Ok(PyVar(var)) = expr.extract() {
         panic!("Can't add a var: {}", var)
-    } else if let Ok(args) = expr.getattr("__egg_args") {
+    } else if let Ok(args) = expr.getattr("__egg_args__") {
 	let args = args.downcast::<PyTuple>().unwrap();
 	let class = if let Ok(class) = expr.getattr("__egg_head__") {
             class.downcast::<PyType>().unwrap()

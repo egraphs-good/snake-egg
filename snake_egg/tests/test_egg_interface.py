@@ -9,16 +9,28 @@ from snake_egg import EGraph, Rewrite, Var, vars
 
 
 # Operations
-@dataclass(frozen=True)
 class Add:
-    x: Any
-    y: Any
+    def __init__(self, x: Any, y: Any):
+        self.x = x
+        self.y = y
+
+    def __egg_head__(self):
+        return self.__class__
+
+    def __egg_args(self):
+        return self.x, self.y
 
 
-@dataclass(frozen=True)
 class Mul:
-    x: Any
-    y: Any
+    def __init__(self, x: Any, y: Any):
+        self.x = x
+        self.y = y
+
+    def __egg_head__(self):
+        return self.__class__
+
+    def __egg_args(self):
+        return self.x, self.y
 
 
 # Rewrite rules

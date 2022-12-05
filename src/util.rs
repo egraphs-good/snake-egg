@@ -17,9 +17,18 @@ pub fn build_node(egraph: &mut EGraph<PythonNode, PythonAnalysis>, expr: &PyAny)
         egraph.find(id)
     } else if let Ok(PyVar(var)) = expr.extract() {
         panic!("Can't add a var: {}", var)
+    } else if let Ok(args) = expr.getattr("__egg_args") {
+	let args = args.downcast::<PyTuple>().unwrap();
+	let class = if let Ok(class) = expr.getattr("__egg_head__") {
+            class.downcast::<PyType>().unwrap()
+        } else {
+            expr.get_type()
+        };
+	let enode = PythonNode::op(class, args.iter().map(|child| build_node(egraph, child)));
+        egraph.add(enode)
     } else if let Ok(args) = expr.getattr("__match_args__") {
         let args = args.downcast::<PyTuple>().unwrap();
-        let class = if let Ok(class) = expr.getattr("__match_type__") {
+        let class = if let Ok(class) = expr.getattr("__egg_head__") {
             class.downcast::<PyType>().unwrap()
         } else {
             expr.get_type()
@@ -44,10 +53,19 @@ pub fn build_pattern(ast: &mut PatternAst<PythonNode>, tree: &PyAny) -> Id {
         panic!("Ids are unsupported in patterns: {}", id.0)
     } else if let Ok(var) = tree.extract::<PyVar>() {
         ast.add(ENodeOrVar::Var(var.0))
-    // check for Sequence first?
+	// check for Sequence first?
+    }  else if let Ok(args) = tree.getattr("__egg_args__") {
+	let args = args.downcast::<PyTuple>().unwrap();
+	let class = if let Ok(class) = tree.getattr("__egg_head__") {
+            class.downcast::<PyType>().unwrap()
+        } else {
+            tree.get_type()
+        };
+	let enode = PythonNode::op(class, args.iter().map(|child| build_pattern(ast, child)));
+        ast.add(ENodeOrVar::ENode(enode))
     } else if let Ok(args) = tree.getattr("__match_args__") {
         let args = args.downcast::<PyTuple>().unwrap();
-        let class = if let Ok(class) = tree.getattr("__match_type__") {
+        let class = if let Ok(class) = tree.getattr("__egg_head__") {
             class.downcast::<PyType>().unwrap()
         } else {
             tree.get_type()

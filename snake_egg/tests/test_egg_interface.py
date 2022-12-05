@@ -14,10 +14,15 @@ class Add:
         self.x = x
         self.y = y
 
+    def __str__(self) -> str:
+        return f"Add({self.x}, {self.y})"
+
+    @property
     def __egg_head__(self):
         return self.__class__
 
-    def __egg_args(self):
+    @property
+    def __egg_args__(self):
         return self.x, self.y
 
 
@@ -26,10 +31,15 @@ class Mul:
         self.x = x
         self.y = y
 
+    def __str__(self) -> str:
+        return f"Mul({self.x}, {self.y})"
+
+    @property
     def __egg_head__(self):
         return self.__class__
 
-    def __egg_args(self):
+    @property
+    def __egg_args__(self):
         return self.x, self.y
 
 
@@ -45,25 +55,29 @@ rules = [
 ]
 
 
-def simplify(expr, iters=7):
+def is_equal(expr_a, expr_b, iters=5):
     egraph = EGraph()
-    egraph.add(expr)
+
+    id_a = egraph.add(expr_a)
+    id_b = egraph.add(expr_b)
+
     egraph.run(rules, iters)
-    best = egraph.extract(expr)
-    return best
+
+    return egraph.equiv(id_a, id_b)
 
 
 def test_simple_1():
-    assert simplify(Mul(0, 42)) == 0
+    assert is_equal(Mul(0, 42), 0)
 
 
 def test_simple_2():
     foo = "foo"
-    assert simplify(Add(0, Mul(1, foo))) == foo
+    assert is_equal(Add(0, Mul(1, foo)), foo)
 
 
 def test_simple_3():
-    assert simplify(Mul(2, Mul(1, "foo"))) == Mul(2, "foo")
+    foo = "foo"
+    assert is_equal(Mul(2, Mul(1, foo)), Mul(2, foo))
 
 
 test_simple_1()

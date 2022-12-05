@@ -5,7 +5,7 @@ dependencies = ["typing-extensions"]
 
 [project]
 name = "snake-egg"
-requires-python = '>=3.10'
+requires-python = '>=3.7'
 
 [tool.isort]
 profile = "black"

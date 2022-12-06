@@ -11,12 +11,13 @@ from snake_egg import EGraph, Rewrite, Var, vars
 # Operations
 @dataclass(frozen=True)
 class Add:
+    __match_args__ = ("x", "y")
     x: Any
     y: Any
 
-
 @dataclass(frozen=True)
 class Mul:
+    __match_args__ = ("x", "y")
     x: Any
     y: Any
 

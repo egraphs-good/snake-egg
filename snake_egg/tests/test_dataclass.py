@@ -11,26 +11,19 @@ from snake_egg import EGraph, Rewrite, Var, vars
 # Operations
 @dataclass(frozen=True)
 class Add:
+    __match_args__ = ("x", "y")
     x: Any
     y: Any
-
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
-
 
 @dataclass(frozen=True)
 class Mul:
+    __match_args__ = ("x", "y")
     x: Any
     y: Any
 
-    @property
-    def __match_args__(self):
-        return (self.x, self.y)
-
 
 # Rewrite rules
-a, b = vars("a b") # type: ignore
+a, b = vars("a b")  # type: ignore
 
 rules = [
     Rewrite(Add(a, b), Add(b, a), name="commute-add"),
@@ -60,3 +53,8 @@ def test_simple_2():
 
 def test_simple_3():
     assert simplify(Mul(2, Mul(1, "foo"))) == Mul(2, "foo")
+
+
+test_simple_1()
+test_simple_2()
+test_simple_3()

@@ -39,7 +39,7 @@ jobs:
         with:
           manylinux: auto
           command: build
-          args: --release  -o dist --find-interpreter
+          args: --release --sdist -o dist --find-interpreter
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:

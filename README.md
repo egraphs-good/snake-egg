@@ -1,6 +1,11 @@
 # Python bindings for [`egg`](https://github.com/egraphs-good/egg)
 
 
+# Installing
+
+This package is published on PyPi and can be installed with `pip install snake-egg`.
+Wheels are built for Python version 3.7-3.10.
+
 # Venv
 
 The build system creates its own python

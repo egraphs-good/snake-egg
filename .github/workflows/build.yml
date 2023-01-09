@@ -39,7 +39,7 @@ jobs:
         with:
           manylinux: auto
           command: build
-          args: --release -o dist
+          args: --release --sdist -o dist --find-interpreter
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
@@ -55,7 +55,7 @@ jobs:
       - uses: PyO3/maturin-action@v1.34.0
         with:
           command: build
-          args: --release -o dist
+          args: --release -o dist --find-interpreter
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
@@ -71,7 +71,7 @@ jobs:
       - uses: PyO3/maturin-action@v1.34.0
         with:
           command: build
-          args: --release -o dist --universal2
+          args: --release -o dist --universal2 --find-interpreter
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
